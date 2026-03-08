@@ -158,42 +158,25 @@ function wireSwipeHandlers() {
 // ─── Direct Card Interactions ───
 
 export function toggleChunkPlay(chunkId) {
-  const sessions = getActiveSessions();
-  const existing = sessions.find(s => s.chunkId === chunkId);
-
-  if (existing) {
-    if (existing.status === 'playing') {
-      // Already playing — open the full player
-      openActivePlayer(chunkId);
-      return;
-    } else {
-      // Paused/overtime — resume and open player
-      updateSession(existing.id, { status: 'playing' });
-      playUiSound('clickPlay');
-      vibrateDevice([10, 20, 40]);
-      renderHome();
-      openActivePlayer(chunkId);
-      return;
-    }
-  }
-
-  // No session — start new and open player
-  const session = createSession(chunkId);
-  if (!session) return;
-  updateSession(session.id, { status: 'playing' });
-  playUiSound('clickPlay');
-  vibrateDevice([10, 20, 40]);
-  renderHome();
-
-  // Open the full player
+  console.log('[KaChunk] toggleChunkPlay:', chunkId);
+  // Always just open the player — it handles its own state
   const startPlayer = window._kachunk._startPlayer;
-  if (startPlayer) startPlayer(chunkId);
+  if (startPlayer) {
+    console.log('[KaChunk] calling startPlayer');
+    startPlayer(chunkId);
+  } else {
+    console.log('[KaChunk] _startPlayer not found!');
+  }
 }
 
 export function openActivePlayer(chunkId) {
-  // Import dynamically to avoid circular dep
+  console.log('[KaChunk] openActivePlayer:', chunkId);
   const startPlayer = window._kachunk._startPlayer;
-  if (startPlayer) startPlayer(chunkId);
+  if (startPlayer) {
+    startPlayer(chunkId);
+  } else {
+    console.log('[KaChunk] _startPlayer not found!');
+  }
 }
 
 export function editChunk(chunkId) {

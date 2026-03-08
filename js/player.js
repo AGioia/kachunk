@@ -76,12 +76,16 @@ function getEffectiveBg() {
 // ─── Start Player ───
 
 export function startPlayer(id) {
+  console.log('[KaChunk] startPlayer called with id:', id);
   const chunks = loadChunks();
+  console.log('[KaChunk] chunks loaded:', chunks.length);
   playerChunk = chunks.find(c => c.id === id);
-  if (!playerChunk) return;
+  if (!playerChunk) { console.log('[KaChunk] chunk not found for id:', id); return; }
+  console.log('[KaChunk] found chunk:', playerChunk.name, 'steps:', playerChunk.steps?.length);
 
   playerFlatSteps = flattenChunk(playerChunk, chunks);
-  if (playerFlatSteps.length === 0) return;
+  console.log('[KaChunk] flatSteps:', playerFlatSteps.length);
+  if (playerFlatSteps.length === 0) { console.log('[KaChunk] no flat steps, aborting'); return; }
 
   playerStepIdx = 0;
   playerPlaying = false;
