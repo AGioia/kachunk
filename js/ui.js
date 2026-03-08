@@ -44,15 +44,32 @@ export function formatTime12(t) {
 // ─── Particles ───
 
 export function spawnParticles() {
-  const emojis = ['🎉', '✨', '🌟', '💛', '🎊', '⭐', '🔥', '💫'];
+  const colors = ['#C44B1A', '#E8A838', '#D4763A', '#A03D14', '#F2C94C', '#E07A2F', '#C9621C', '#D99E3A'];
+  const sizes = [6, 8, 10, 12, 14];
+  const shapes = ['circle', 'diamond', 'star'];
   for (let i = 0; i < 12; i++) {
     setTimeout(() => {
       const p = document.createElement('div');
       p.className = 'particle';
-      p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const size = sizes[Math.floor(Math.random() * sizes.length)];
+      const shape = shapes[Math.floor(Math.random() * shapes.length)];
       p.style.left = (10 + Math.random() * 80) + 'vw';
       p.style.top = (30 + Math.random() * 50) + 'vh';
       p.style.animationDuration = (1 + Math.random() * 1) + 's';
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.background = color;
+      p.style.fontSize = '0';
+      if (shape === 'circle') {
+        p.style.borderRadius = '50%';
+      } else if (shape === 'diamond') {
+        p.style.borderRadius = '2px';
+        p.style.transform = 'rotate(45deg)';
+      } else {
+        p.style.borderRadius = '1px';
+        p.style.clipPath = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)';
+      }
       document.body.appendChild(p);
       setTimeout(() => p.remove(), 2000);
     }, i * 120);

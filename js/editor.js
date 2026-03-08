@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════
 
 import { loadChunks, saveChunks, genId, flattenChunk, getTotalDuration, getFlatStepCount, chunkReferencesId } from './store.js';
-import { esc, formatDuration, showToast } from './ui.js';
+import { esc, formatDuration, showToast, showConfirm } from './ui.js';
 import { showScreen, goHome } from './router.js';
 import { ALARM_SOUNDS, BG_SOUNDS, previewSound } from './audio.js';
 import { renderHome } from './home.js';
@@ -12,6 +12,68 @@ let editingId = null;
 let editSteps = [];
 let editChunkAudioAlarm = 'default';
 let editChunkAudioBg = 'default';
+
+// ─── Debounced Autosave ───
+
+let autosaveTimer = null;
+let editNameListenerWired = false;
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(doAutosave, 300);
+}
+
+function doAutosave() {
+  const name = document.getElementById('editName').value.trim();
+
+  // For new chunks: only create once there's meaningful content
+  if (!editingId) {
+    const hasName = name.length > 0;
+    const hasLabeledStep = editSteps.some(s => {
+      if ((s.type || 'step') === 'chunk') return true;
+      return s.label && s.label.trim().length > 0;
+    });
+    if (!hasName && !hasLabeledStep) return; // nothing meaningful yet
+    // Auto-create the chunk
+    editingId = genId();
+  }
+
+  // Build clean steps (keep all, including empty labels — user is mid-edit)
+  const steps = editSteps.map(s => {
+    if ((s.type || 'step') === 'chunk') return { ...s };
+    return { ...s, minutes: Math.max(0.5, parseFloat(s.minutes) || 1) };
+  });
+
+  let chunks = loadChunks();
+  const idx = chunks.findIndex(c => c.id === editingId);
+
+  const chunkObj = {
+    id: editingId,
+    name: name,
+    steps: steps,
+    audioAlarm: editChunkAudioAlarm !== 'default' ? editChunkAudioAlarm : undefined,
+    audioBg: editChunkAudioBg !== 'default' ? editChunkAudioBg : undefined,
+  };
+
+  if (idx >= 0) {
+    // Preserve existing schedule and any other fields
+    chunkObj.schedule = chunks[idx].schedule;
+    chunks[idx] = { ...chunks[idx], ...chunkObj };
+  } else {
+    chunkObj.schedule = { days: [], startTime: '' };
+    chunks.push(chunkObj);
+  }
+
+  saveChunks(chunks);
+  showToast('\u2713 Saved');
+}
+
+function wireEditNameListener() {
+  const el = document.getElementById('editName');
+  if (editNameListenerWired) return;
+  editNameListenerWired = true;
+  el.addEventListener('input', () => scheduleAutosave());
+}
 
 // ─── Open Editor ───
 
@@ -24,6 +86,7 @@ export function createNewChunk() {
   renderEditSteps();
   renderEditAudioPickers();
   showScreen('editScreen');
+  wireEditNameListener();
   setTimeout(() => document.getElementById('editName').focus(), 400);
 }
 
@@ -41,6 +104,7 @@ export function openEditor(id) {
   renderEditSteps();
   renderEditAudioPickers();
   showScreen('editScreen');
+  wireEditNameListener();
 }
 
 // ─── Render Steps ───
@@ -58,7 +122,7 @@ function renderEditSteps() {
         const previewSteps = flattenChunk(sub, allChunks);
         const previewId = 'subpreview_' + i;
         const isLocked = !!s.locked;
-        const lockIcon = isLocked ? '🔒' : '🔓';
+        const lockIcon = isLocked ? '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>' : '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0"/></svg>';
         const lockTitle = isLocked ? 'Locked (using snapshot)' : 'Unlocked (live reference)';
         return `
           <div class="step-item sub-chunk-item" onclick="window._kachunk.toggleSubPreview('${previewId}')">
@@ -104,7 +168,7 @@ function renderEditSteps() {
           oninput="window._kachunk.updateStepMinutes(${i},this.value)">
         <span>min</span>
       </div>
-      <button class="step-sound-btn ${s.sound ? 'has-sound' : ''}" onclick="window._kachunk.openStepSoundPicker(this,${i})" title="Step sound">🔔</button>
+      <button class="step-sound-btn ${s.sound ? 'has-sound' : ''}" onclick="window._kachunk.openStepSoundPicker(this,${i})" title="Step sound"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 2a5 5 0 00-5 5c0 4-2 5-2 5h14s-2-1-2-5a5 5 0 00-5-5z"/><path d="M8.5 17a1.5 1.5 0 003 0"/></svg></button>
       <div class="step-reorder">
         <button onclick="window._kachunk.moveStep(${i},-1)" ${i === 0 ? 'disabled style="opacity:0.2"' : ''}>▲</button>
         <button onclick="window._kachunk.moveStep(${i},1)" ${i === editSteps.length - 1 ? 'disabled style="opacity:0.2"' : ''}>▼</button>
@@ -119,6 +183,7 @@ function renderEditSteps() {
 export function addStep() {
   editSteps.push({ label: '', minutes: 5 });
   renderEditSteps();
+  scheduleAutosave();
   const items = document.querySelectorAll('#editSteps .step-item');
   const last = items[items.length - 1];
   if (last) {
@@ -131,6 +196,7 @@ export function removeStep(i) {
   if (editSteps.length <= 1) return;
   editSteps.splice(i, 1);
   renderEditSteps();
+  scheduleAutosave();
 }
 
 export function moveStep(i, dir) {
@@ -138,14 +204,17 @@ export function moveStep(i, dir) {
   if (j < 0 || j >= editSteps.length) return;
   [editSteps[i], editSteps[j]] = [editSteps[j], editSteps[i]];
   renderEditSteps();
+  scheduleAutosave();
 }
 
 export function updateStepLabel(i, val) {
   editSteps[i].label = val;
+  scheduleAutosave();
 }
 
 export function updateStepMinutes(i, val) {
   editSteps[i].minutes = parseFloat(val) || 1;
+  scheduleAutosave();
 }
 
 export function toggleSubPreview(previewId) {
@@ -164,7 +233,7 @@ export function openStepSoundPicker(btn, stepIdx) {
   const currentSound = editSteps[stepIdx].sound || 'default';
 
   dropdown.innerHTML =
-    `<button class="step-sound-option ${currentSound === 'default' ? 'selected' : ''}" onclick="window._kachunk.pickStepSound('default')"><span class="opt-icon">🎛</span> Default</button>` +
+    `<button class="step-sound-option ${currentSound === 'default' ? 'selected' : ''}" onclick="window._kachunk.pickStepSound('default')"><span class="opt-icon"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.5"/><path d="M10 4v2"/></svg></span> Default</button>` +
     Object.entries(ALARM_SOUNDS).map(([key, snd]) =>
       `<button class="step-sound-option ${currentSound === key ? 'selected' : ''}" onclick="window._kachunk.pickStepSound('${key}')"><span class="opt-icon">${snd.icon}</span> ${snd.label}</button>`
     ).join('');
@@ -204,7 +273,8 @@ export function toggleLock(stepIdx) {
     step.locked = false;
     delete step.snapshot;
     delete step.snapshotAt;
-    showToast('Unlocked — using live reference');
+    showToast('Unlocked');
+    scheduleAutosave();
   } else {
     // Lock: take snapshot of current sub-chunk state
     const allChunks = loadChunks();
@@ -218,7 +288,8 @@ export function toggleLock(stepIdx) {
       sound: s.sound,
     }));
     step.snapshotAt = new Date().toISOString();
-    showToast('Locked — snapshot saved');
+    showToast('Locked');
+    scheduleAutosave();
   }
   renderEditSteps();
 }
@@ -265,7 +336,7 @@ export function pickSubChunk(chunkId) {
   editSteps.push({ type: 'chunk', chunkId: chunkId });
   closeChunkPicker();
   renderEditSteps();
-  showToast('Sub-chunk added');
+  scheduleAutosave();
 }
 
 // ─── Audio Pickers ───
@@ -275,13 +346,13 @@ function renderEditAudioPickers() {
   const bgPicker = document.getElementById('editBgPicker');
 
   alarmPicker.innerHTML =
-    `<button class="sound-pill ${editChunkAudioAlarm === 'default' ? 'selected' : ''}" onclick="window._kachunk.selectEditAlarm('default')">🎛 Default</button>` +
+    `<button class="sound-pill ${editChunkAudioAlarm === 'default' ? 'selected' : ''}" onclick="window._kachunk.selectEditAlarm('default')"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.5"/><path d="M10 4v2"/></svg> Default</button>` +
     Object.entries(ALARM_SOUNDS).map(([key, snd]) =>
       `<button class="sound-pill ${editChunkAudioAlarm === key ? 'selected' : ''}" onclick="window._kachunk.selectEditAlarm('${key}')">${snd.icon} ${snd.label}</button>`
     ).join('');
 
   bgPicker.innerHTML =
-    `<button class="sound-pill ${editChunkAudioBg === 'default' ? 'selected' : ''}" onclick="window._kachunk.selectEditBg('default')">🎛 Default</button>` +
+    `<button class="sound-pill ${editChunkAudioBg === 'default' ? 'selected' : ''}" onclick="window._kachunk.selectEditBg('default')"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.5"/><path d="M10 4v2"/></svg> Default</button>` +
     Object.entries(BG_SOUNDS).map(([key, snd]) =>
       `<button class="sound-pill ${editChunkAudioBg === key ? 'selected' : ''}" onclick="window._kachunk.selectEditBg('${key}')">${snd.icon} ${snd.label}</button>`
     ).join('');
@@ -290,63 +361,35 @@ function renderEditAudioPickers() {
 export function selectEditAlarm(key) {
   editChunkAudioAlarm = key;
   renderEditAudioPickers();
+  scheduleAutosave();
   if (key !== 'default') previewSound('alarm', key);
 }
 
 export function selectEditBg(key) {
   editChunkAudioBg = key;
   renderEditAudioPickers();
+  scheduleAutosave();
   if (key !== 'default') previewSound('bg', key);
 }
 
-// ─── Save ───
+// ─── Delete from Editor ───
 
-export function saveChunk() {
-  const name = document.getElementById('editName').value.trim();
-  if (!name) {
-    showToast('Please enter a name');
-    document.getElementById('editName').focus();
+export function deleteChunkFromEditor() {
+  if (!editingId) {
+    // New unsaved chunk — just go back
+    goHome();
+    renderHome();
     return;
   }
-
-  const validSteps = editSteps.filter(s => {
-    if ((s.type || 'step') === 'chunk') return true;
-    return s.label && s.label.trim();
+  const chunks = loadChunks();
+  const chunk = chunks.find(c => c.id === editingId);
+  const name = chunk ? chunk.name : 'this chunk';
+  showConfirm(`Delete "${name}"? This can't be undone.`, () => {
+    const filtered = loadChunks().filter(c => c.id !== editingId);
+    saveChunks(filtered);
+    editingId = null;
+    showToast('Deleted');
+    goHome();
+    renderHome();
   });
-  if (validSteps.length === 0) {
-    showToast('Add at least one named step');
-    return;
-  }
-
-  validSteps.forEach(s => {
-    if ((s.type || 'step') === 'chunk') return;
-    s.label = s.label.trim();
-    s.minutes = Math.max(0.5, parseFloat(s.minutes) || 1);
-  });
-
-  let chunks = loadChunks();
-
-  if (editingId) {
-    const idx = chunks.findIndex(c => c.id === editingId);
-    if (idx >= 0) {
-      chunks[idx].name = name;
-      chunks[idx].steps = validSteps;
-      chunks[idx].audioAlarm = editChunkAudioAlarm !== 'default' ? editChunkAudioAlarm : undefined;
-      chunks[idx].audioBg = editChunkAudioBg !== 'default' ? editChunkAudioBg : undefined;
-    }
-  } else {
-    chunks.push({
-      id: genId(),
-      name,
-      steps: validSteps,
-      schedule: { days: [], startTime: '' },
-      audioAlarm: editChunkAudioAlarm !== 'default' ? editChunkAudioAlarm : undefined,
-      audioBg: editChunkAudioBg !== 'default' ? editChunkAudioBg : undefined
-    });
-  }
-
-  saveChunks(chunks);
-  showToast(editingId ? 'Chunk updated' : 'Chunk created');
-  goHome();
-  renderHome();
 }

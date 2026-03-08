@@ -5,8 +5,8 @@
 
 import { initIdentity } from './identity.js';
 import { onNavigate, goHome } from './router.js';
-import { renderHome, openSheet, closeSheet, playSelectedChunk, editSelectedChunk, scheduleSelectedChunk, deleteSelectedChunk } from './home.js';
-import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, saveChunk, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg, toggleLock } from './editor.js';
+import { renderHome, toggleChunkPlay, openActivePlayer, editChunk } from './home.js';
+import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg, toggleLock, deleteChunkFromEditor } from './editor.js';
 import { startPlayer, togglePlay, playerNext, playerPrev, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg, toggleBreadcrumb, closeBreadcrumb, scrollToStep } from './player.js';
 import { openSchedule, toggleDay, saveSchedule, clearSchedule, initScheduleListeners } from './schedule.js';
 import { openAudioSettings, closeAudioSettings, selectAlarmSound, selectBgSound, toggleSettingSwitch, onVolumeChange } from './audio-settings.js';
@@ -14,17 +14,16 @@ import { closeConfirm, executeConfirm } from './ui.js';
 import { unlockAudio } from './audio.js';
 
 // ─── Global bridge for inline onclick handlers ───
-// ES modules can't be called from inline HTML onclick,
-// so we expose a global namespace.
 
 window._kachunk = {
-  // Home
-  openSheet,
-  closeSheet,
-  playSelectedChunk: () => playSelectedChunk(startPlayer),
-  editSelectedChunk: () => editSelectedChunk(openEditor),
-  scheduleSelectedChunk: () => scheduleSelectedChunk(openSchedule),
-  deleteSelectedChunk,
+  // Chunk Drawer (Home)
+  toggleChunkPlay,
+  openActivePlayer,
+  editChunk,
+
+  // Internal refs for home.js to use without circular imports
+  _startPlayer: startPlayer,
+  _openEditor: openEditor,
 
   // Editor
   createNewChunk,
@@ -34,7 +33,6 @@ window._kachunk = {
   updateStepLabel,
   updateStepMinutes,
   toggleSubPreview,
-  saveChunk,
   openStepSoundPicker,
   pickStepSound,
   openChunkPicker,
@@ -43,6 +41,7 @@ window._kachunk = {
   selectEditAlarm,
   selectEditBg,
   toggleLock,
+  deleteChunkFromEditor,
 
   // Player
   togglePlay,

@@ -34,7 +34,32 @@
 }
 
 /* ═══ Chunk Cards ═══ */
+/* ═══ Chunk Card — Direct Interactions ═══ */
 .chunk-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-delete-bg {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  background: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+}
+
+.card-delete-bg svg {
+  width: 22px;
+  height: 22px;
+  color: white;
+}
+
+.card-content {
   background: var(--card);
   border-radius: var(--radius);
   padding: 14px 16px;
@@ -48,11 +73,17 @@
   gap: 14px;
 }
 
-.chunk-card:active {
+.card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.card-content:active {
   transform: scale(0.985);
 }
 
 /* Chronometer thumbnail */
+/* Chrono thumb — play/pause button */
 .chrono-thumb {
   width: 44px;
   height: 44px;
@@ -61,26 +92,124 @@
   flex-shrink: 0;
   background: var(--surface);
   border: 1.5px solid rgba(26, 22, 19, 0.06);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
-.chrono-thumb::after {
-  content: '';
+.chrono-thumb:active {
+  transform: scale(0.9);
+}
+
+.chrono-thumb svg {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ct-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ct-icon svg {
+  width: 14px;
+  height: 14px;
+  position: static;
+  color: var(--text-3);
+}
+
+.chrono-thumb.is-active .ct-icon svg {
+  color: var(--accent);
+}
+
+.chrono-thumb.is-playing {
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 0 8px var(--accent-glow);
+}
+
+/* Active chunk card highlight */
+.chunk-card.active-chunk .card-content {
+  border-color: var(--accent-soft);
+}
+
+.card-status {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.card-status.playing { color: var(--accent); }
+.card-status.overtime { color: var(--overtime); }
+.card-status.paused { color: var(--text-3); }
+
+.sched-dot {
   width: 4px;
   height: 4px;
   border-radius: 50%;
   background: var(--accent);
-  transform: translate(-50%, -50%);
+  display: inline-block;
 }
 
-.chunk-card .card-info {
+/* Card edit button (right arrow) */
+.card-edit-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.card-edit-btn:active {
+  background: var(--surface);
+}
+
+.card-edit-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Delete button in editor */
+.delete-chunk-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-top: 32px;
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  border-radius: var(--radius-sm);
+}
+
+.delete-chunk-btn:active {
+  background: rgba(166, 50, 32, 0.06);
+}
+
+.card-content .card-info {
   flex: 1;
   min-width: 0;
 }
 
-.chunk-card .card-name {
+.card-content .card-name {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 3px;
@@ -90,18 +219,18 @@
   letter-spacing: -0.1px;
 }
 
-.chunk-card .card-meta {
+.card-content .card-meta {
   font-size: 12px;
   color: var(--text-3);
   display: flex;
   gap: 6px;
 }
 
-.chunk-card .card-meta .dot {
+.card-content .card-meta .dot {
   color: rgba(26, 22, 19, 0.15);
 }
 
-.chunk-card .card-schedule {
+.card-content .card-schedule {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -111,13 +240,7 @@
   margin-top: 3px;
 }
 
-.chunk-card .card-arrow {
-  width: 16px;
-  height: 16px;
-  color: var(--text-3);
-  flex-shrink: 0;
-  opacity: 0.4;
-}
+/* old card-arrow styles removed — see card-edit-btn above */
 
 .card-has-subchunks {
   font-size: 10px;
@@ -426,6 +549,27 @@
 
 .save-btn:active {
   transform: scale(0.98);
+}
+
+/* ═══ Delete Chunk Button (Editor) ═══ */
+.delete-chunk-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 32px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.delete-chunk-btn:active {
+  opacity: 1;
 }
 
 /* ═══ Settings Button ═══ */

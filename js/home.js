@@ -1,20 +1,24 @@
 // ═══════════════════════════════════════════════════
-// KaChunk — Home Screen
+// KaChunk — Chunk Drawer (Home Screen)
+// Direct card interactions: tap chrono = play, arrow = edit, swipe = delete
 // ═══════════════════════════════════════════════════
 
-import { loadChunks, getTotalDuration, getFlatStepCount, hasSubChunks } from './store.js';
+import { loadChunks, getTotalDuration, getFlatStepCount, hasSubChunks, getActiveSessions, createSession, updateSession, removeSession } from './store.js';
 import { esc, formatDuration, formatTime12, showToast, showConfirm, executeConfirm, closeConfirm } from './ui.js';
 import { showScreen, goHome } from './router.js';
 import * as store from './store.js';
+import { playUiSound, vibrateDevice } from './audio.js';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-let selectedChunkId = null;
+// Track swipe state per card
+let swipeState = { cardEl: null, startX: 0, currentX: 0 };
 
 // ─── Render Home ───
 
 export function renderHome() {
   const chunks = loadChunks();
+  const sessions = getActiveSessions();
   const list = document.getElementById('chunkList');
 
   if (chunks.length === 0) {
@@ -33,29 +37,52 @@ export function renderHome() {
     const stepCount = getFlatStepCount(c, chunks);
     const hasSubs = hasSubChunks(c);
     const schedText = getScheduleText(c.schedule);
+    const session = sessions.find(s => s.chunkId === c.id);
+    const isActive = session && (session.status === 'playing' || session.status === 'paused' || session.status === 'overtime');
+    const isPlaying = session && session.status === 'playing';
+
     return `
-      <div class="chunk-card" onclick="window._kachunk.openSheet('${c.id}')">
-        <div class="chrono-thumb">
-          <svg viewBox="0 0 44 44">
-            <circle fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
-            <circle fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
-              stroke-dasharray="119.4" stroke-dashoffset="${119.4 * (1 - Math.min(stepCount / 10, 1))}"
-              transform="rotate(-90 22 22)"/>
+      <div class="chunk-card ${isActive ? 'active-chunk' : ''}" data-chunk-id="${c.id}" data-session-id="${session ? session.id : ''}">
+        <div class="card-delete-bg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
           </svg>
         </div>
-        <div class="card-info">
-          <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks">⟁</span>' : ''}</div>
-          <div class="card-meta">
-            <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
-            <span class="dot">·</span>
-            <span>${formatDuration(totalMin)}</span>
+        <div class="card-content">
+          <button class="chrono-thumb ${isActive ? 'is-active' : ''} ${isPlaying ? 'is-playing' : ''}" onclick="event.stopPropagation();window._kachunk.toggleChunkPlay('${c.id}')" aria-label="${isPlaying ? 'Pause' : 'Play'} ${c.name}">
+            <svg viewBox="0 0 44 44">
+              <circle class="ct-track" fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
+              <circle class="ct-progress" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
+                stroke-dasharray="119.4" stroke-dashoffset="${isActive && session ? 119.4 * (1 - (session.flatStepIdx / session.flatSteps.length)) : 119.4 * (1 - Math.min(stepCount / 10, 1))}"
+                transform="rotate(-90 22 22)"/>
+            </svg>
+            <div class="ct-icon">
+              ${isPlaying
+                ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="6" width="3" height="12" rx="1"/><rect x="14" y="6" width="3" height="12" rx="1"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
+              }
+            </div>
+          </button>
+          <div class="card-info" ${isActive ? `onclick="window._kachunk.openActivePlayer('${c.id}')"` : ''}>
+            <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}</div>
+            <div class="card-meta">
+              <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
+              <span class="dot">·</span>
+              <span>${formatDuration(totalMin)}</span>
+              ${isActive && session ? `<span class="dot">·</span><span class="card-status ${session.status}">${session.status === 'playing' ? 'Playing' : session.status === 'overtime' ? 'Overtime' : 'Paused'}</span>` : ''}
+            </div>
+            ${schedText ? `<div class="card-schedule"><span class="sched-dot"></span> ${schedText}</div>` : ''}
           </div>
-          ${schedText ? `<div class="card-schedule"><span class="dot" style="width:4px;height:4px;border-radius:50%;background:var(--accent);display:inline-block"></span> ${schedText}</div>` : ''}
+          <button class="card-edit-btn" onclick="event.stopPropagation();window._kachunk.editChunk('${c.id}')" aria-label="Edit ${c.name}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
         </div>
-        <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
       </div>
     `;
   }).join('');
+
+  // Wire up swipe-to-delete
+  wireSwipeHandlers();
 }
 
 function getScheduleText(sched) {
@@ -65,66 +92,112 @@ function getScheduleText(sched) {
   return `${dayStr} at ${timeStr}`;
 }
 
-// ─── Action Sheet ───
+// ─── Swipe-to-Delete ───
 
-export function openSheet(id) {
-  selectedChunkId = id;
-  const chunks = loadChunks();
-  const chunk = chunks.find(c => c.id === id);
-  if (!chunk) return;
+function wireSwipeHandlers() {
+  const cards = document.querySelectorAll('.chunk-card');
+  cards.forEach(card => {
+    const content = card.querySelector('.card-content');
+    if (!content) return;
 
-  document.getElementById('sheetTitle').textContent = chunk.name || 'Untitled';
-  document.getElementById('sheetOverlay').classList.add('show');
-  document.getElementById('actionSheet').classList.add('show');
-}
+    content.addEventListener('touchstart', (e) => {
+      swipeState.cardEl = card;
+      swipeState.startX = e.touches[0].clientX;
+      swipeState.currentX = swipeState.startX;
+      content.style.transition = 'none';
+    }, { passive: true });
 
-export function closeSheet() {
-  document.getElementById('sheetOverlay').classList.remove('show');
-  document.getElementById('actionSheet').classList.remove('show');
-  selectedChunkId = null;
-}
+    content.addEventListener('touchmove', (e) => {
+      if (!swipeState.cardEl) return;
+      swipeState.currentX = e.touches[0].clientX;
+      const dx = swipeState.currentX - swipeState.startX;
+      if (dx < 0) {
+        // Swipe left only, capped at -100px
+        const offset = Math.max(dx, -100);
+        content.style.transform = `translateX(${offset}px)`;
+      }
+    }, { passive: true });
 
-function closeSheetVisual() {
-  document.getElementById('sheetOverlay').classList.remove('show');
-  document.getElementById('actionSheet').classList.remove('show');
-}
+    content.addEventListener('touchend', () => {
+      if (!swipeState.cardEl) return;
+      const dx = swipeState.currentX - swipeState.startX;
+      content.style.transition = 'transform 0.25s ease';
 
-export function getSelectedChunkId() {
-  return selectedChunkId;
-}
+      if (dx < -60) {
+        // Swiped far enough — show delete
+        content.style.transform = 'translateX(-80px)';
+        const chunkId = card.dataset.chunkId;
+        // Auto-reset after 4 seconds if not deleted
+        setTimeout(() => {
+          if (content.style.transform === 'translateX(-80px)') {
+            content.style.transform = 'translateX(0)';
+          }
+        }, 4000);
 
-export function playSelectedChunk(startPlayerFn) {
-  const id = selectedChunkId;
-  if (!id) return;
-  closeSheetVisual();
-  setTimeout(() => { selectedChunkId = null; startPlayerFn(id); }, 180);
-}
-
-export function editSelectedChunk(openEditorFn) {
-  const id = selectedChunkId;
-  if (!id) return;
-  closeSheetVisual();
-  setTimeout(() => { selectedChunkId = null; openEditorFn(id); }, 180);
-}
-
-export function scheduleSelectedChunk(openScheduleFn) {
-  const id = selectedChunkId;
-  if (!id) return;
-  closeSheetVisual();
-  setTimeout(() => { selectedChunkId = null; openScheduleFn(id); }, 180);
-}
-
-export function deleteSelectedChunk() {
-  const id = selectedChunkId;
-  if (!id) return;
-  closeSheetVisual();
-  const chunks = loadChunks();
-  const chunk = chunks.find(c => c.id === id);
-  if (!chunk) return;
-
-  showConfirm(`Delete "${chunk.name || 'Untitled'}"? This can't be undone.`, () => {
-    store.deleteChunk(id);
-    showToast('Chunk deleted');
-    renderHome();
+        // Wire the delete background click
+        const deleteBg = card.querySelector('.card-delete-bg');
+        deleteBg.onclick = () => {
+          const chunks = loadChunks();
+          const chunk = chunks.find(c => c.id === chunkId);
+          showConfirm(`Delete "${chunk?.name || 'Untitled'}"?`, () => {
+            store.deleteChunk(chunkId);
+            showToast('Deleted');
+            renderHome();
+          });
+        };
+      } else {
+        content.style.transform = 'translateX(0)';
+      }
+      swipeState.cardEl = null;
+    });
   });
 }
+
+// ─── Direct Card Interactions ───
+
+export function toggleChunkPlay(chunkId) {
+  const sessions = getActiveSessions();
+  const existing = sessions.find(s => s.chunkId === chunkId);
+
+  if (existing) {
+    // Toggle play/pause on existing session
+    if (existing.status === 'playing') {
+      updateSession(existing.id, { status: 'paused' });
+      playUiSound('clickPause');
+    } else {
+      updateSession(existing.id, { status: 'playing' });
+      playUiSound('clickPlay');
+      vibrateDevice([10, 20, 40]);
+    }
+  } else {
+    // Start new session
+    const session = createSession(chunkId);
+    if (!session) return;
+    updateSession(session.id, { status: 'playing' });
+    // Precursor KaChunk sound — lighter, shorter
+    playUiSound('clickPlay');
+    vibrateDevice([10, 20, 40]);
+  }
+  renderHome();
+}
+
+export function openActivePlayer(chunkId) {
+  // Import dynamically to avoid circular dep
+  const startPlayer = window._kachunk._startPlayer;
+  if (startPlayer) startPlayer(chunkId);
+}
+
+export function editChunk(chunkId) {
+  const openEditor = window._kachunk._openEditor;
+  if (openEditor) openEditor(chunkId);
+}
+
+// ─── Legacy compat (kept for existing refs) ───
+
+export function openSheet() {}
+export function closeSheet() {}
+export function playSelectedChunk() {}
+export function editSelectedChunk() {}
+export function scheduleSelectedChunk() {}
+export function deleteSelectedChunk() {}
+export function getSelectedChunkId() { return null; }

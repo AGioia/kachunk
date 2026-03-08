@@ -54,19 +54,19 @@ export function unlockAudio() {
 // ─── Sound Libraries ───
 
 export const ALARM_SOUNDS = {
-  chime: { label: 'Chime', icon: '🎵' },
-  bell: { label: 'Bell', icon: '🔔' },
-  buzzer: { label: 'Buzzer', icon: '📢' },
-  digital: { label: 'Digital', icon: '🤖' },
-  zen: { label: 'Zen', icon: '🧘' }
+  chime: { label: 'Chime', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 3v14"/><path d="M6 7c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="7" cy="13" r="2"/><circle cx="13" cy="9" r="2"/></svg>' },
+  bell: { label: 'Bell', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 2a5 5 0 00-5 5c0 4-2 5-2 5h14s-2-1-2-5a5 5 0 00-5-5z"/><path d="M8.5 17a1.5 1.5 0 003 0"/></svg>' },
+  buzzer: { label: 'Buzzer', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 10h2l3-6v12l-3-6H3z"/><path d="M12 7c1.3 1 2 2.5 2 3s-.7 2-2 3"/><path d="M14 5c2 1.5 3 3.5 3 5s-1 3.5-3 5"/></svg>' },
+  digital: { label: 'Digital', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M7 9h2v4H7z"/><path d="M11 7h2v6h-2z"/></svg>' },
+  zen: { label: 'Zen', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 2.5"/></svg>' }
 };
 
 export const BG_SOUNDS = {
-  none: { label: 'None', icon: '🔇' },
-  ticking: { label: 'Ticking', icon: '⏱' },
-  whitenoise: { label: 'White Noise', icon: '📻' },
-  rain: { label: 'Rain', icon: '🌧' },
-  lofi: { label: 'Lo-Fi', icon: '🎧' }
+  none: { label: 'None', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 10h2l3-6v12l-3-6H3z"/><path d="M16 7l-6 6"/><path d="M10 7l6 6"/></svg>' },
+  ticking: { label: 'Ticking', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2 2"/></svg>' },
+  whitenoise: { label: 'White Noise', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 10h2l2-4 2 8 2-8 2 4h2"/></svg>' },
+  rain: { label: 'Rain', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 13l1 3"/><path d="M9 12l1 4"/><path d="M13 13l1 3"/><path d="M4 9a4 4 0 017-2 3 3 0 015 2H4z"/></svg>' },
+  lofi: { label: 'Lo-Fi', icon: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 14V6l4-2v12"/><circle cx="4" cy="14" r="2"/><circle cx="8" cy="16" r="2"/><path d="M12 8h6M12 11h6M12 14h4"/></svg>' }
 };
 
 // ─── Alarm Generators ───
