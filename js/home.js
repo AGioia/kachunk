@@ -84,31 +84,40 @@ export function closeSheet() {
   selectedChunkId = null;
 }
 
+function closeSheetVisual() {
+  document.getElementById('sheetOverlay').classList.remove('show');
+  document.getElementById('actionSheet').classList.remove('show');
+}
+
 export function getSelectedChunkId() {
   return selectedChunkId;
 }
 
 export function playSelectedChunk(startPlayerFn) {
   const id = selectedChunkId;
-  closeSheet();
-  setTimeout(() => startPlayerFn(id), 150);
+  if (!id) return;
+  closeSheetVisual();
+  setTimeout(() => { selectedChunkId = null; startPlayerFn(id); }, 180);
 }
 
 export function editSelectedChunk(openEditorFn) {
   const id = selectedChunkId;
-  closeSheet();
-  setTimeout(() => openEditorFn(id), 150);
+  if (!id) return;
+  closeSheetVisual();
+  setTimeout(() => { selectedChunkId = null; openEditorFn(id); }, 180);
 }
 
 export function scheduleSelectedChunk(openScheduleFn) {
   const id = selectedChunkId;
-  closeSheet();
-  setTimeout(() => openScheduleFn(id), 150);
+  if (!id) return;
+  closeSheetVisual();
+  setTimeout(() => { selectedChunkId = null; openScheduleFn(id); }, 180);
 }
 
 export function deleteSelectedChunk() {
   const id = selectedChunkId;
-  closeSheet();
+  if (!id) return;
+  closeSheetVisual();
   const chunks = loadChunks();
   const chunk = chunks.find(c => c.id === id);
   if (!chunk) return;

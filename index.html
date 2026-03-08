@@ -195,16 +195,16 @@
 <div class="action-sheet" id="actionSheet">
   <div class="handle"></div>
   <div class="sheet-title" id="sheetTitle">—</div>
-  <button class="sheet-btn" onclick="window._kachunk.playSelectedChunk()">
+  <button class="sheet-btn" onclick="event.stopPropagation();window._kachunk.playSelectedChunk()">
     <div class="sheet-icon play">▶</div> Play
   </button>
-  <button class="sheet-btn" onclick="window._kachunk.editSelectedChunk()">
+  <button class="sheet-btn" onclick="event.stopPropagation();window._kachunk.editSelectedChunk()">
     <div class="sheet-icon edit">✎</div> Edit
   </button>
-  <button class="sheet-btn" onclick="window._kachunk.scheduleSelectedChunk()">
+  <button class="sheet-btn" onclick="event.stopPropagation();window._kachunk.scheduleSelectedChunk()">
     <div class="sheet-icon schedule">🕐</div> Schedule
   </button>
-  <button class="sheet-btn danger" onclick="window._kachunk.deleteSelectedChunk()">
+  <button class="sheet-btn danger" onclick="event.stopPropagation();window._kachunk.deleteSelectedChunk()">
     <div class="sheet-icon delete">✕</div> Delete
   </button>
 </div>
