@@ -5,7 +5,7 @@
 
 import { initIdentity } from './identity.js';
 import { onNavigate, goHome } from './router.js';
-import { renderHome, toggleChunkPlay, openActivePlayer, editChunk } from './home.js';
+import { renderHome, playChunk, editChunk } from './home.js';
 import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg, toggleLock, deleteChunkFromEditor } from './editor.js';
 import { startPlayer, togglePlay, playerNext, playerPrev, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg, toggleBreadcrumb, closeBreadcrumb, scrollToStep } from './player.js';
 import { openSchedule, toggleDay, saveSchedule, clearSchedule, initScheduleListeners } from './schedule.js';
@@ -17,11 +17,10 @@ import { unlockAudio } from './audio.js';
 
 window._kachunk = {
   // Chunk Drawer (Home)
-  toggleChunkPlay,
-  openActivePlayer,
+  playChunk,
   editChunk,
 
-  // Internal refs for home.js to use without circular imports
+  // Internal refs for home.js to call without circular imports
   _startPlayer: startPlayer,
   _openEditor: openEditor,
 
