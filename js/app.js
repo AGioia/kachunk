@@ -6,7 +6,7 @@
 import { initIdentity } from './identity.js';
 import { onNavigate, goHome } from './router.js';
 import { renderHome, openSheet, closeSheet, playSelectedChunk, editSelectedChunk, scheduleSelectedChunk, deleteSelectedChunk } from './home.js';
-import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, saveChunk, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg } from './editor.js';
+import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, saveChunk, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg, toggleLock } from './editor.js';
 import { startPlayer, togglePlay, playerNext, playerPrev, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg } from './player.js';
 import { openSchedule, toggleDay, saveSchedule, clearSchedule, initScheduleListeners } from './schedule.js';
 import { openAudioSettings, closeAudioSettings, selectAlarmSound, selectBgSound, toggleSettingSwitch, onVolumeChange } from './audio-settings.js';
@@ -42,6 +42,7 @@ window._kachunk = {
   pickSubChunk,
   selectEditAlarm,
   selectEditBg,
+  toggleLock,
 
   // Player
   togglePlay,

@@ -57,16 +57,20 @@ function renderEditSteps() {
         const subCount = getFlatStepCount(sub, allChunks);
         const previewSteps = flattenChunk(sub, allChunks);
         const previewId = 'subpreview_' + i;
+        const isLocked = !!s.locked;
+        const lockIcon = isLocked ? '🔒' : '🔓';
+        const lockTitle = isLocked ? 'Locked (using snapshot)' : 'Unlocked (live reference)';
         return `
           <div class="step-item sub-chunk-item" onclick="window._kachunk.toggleSubPreview('${previewId}')">
-            <div class="step-number" style="background:var(--accent-light)">🔗</div>
+            <div class="step-number" style="background:var(--accent)">⟁</div>
             <div class="sub-chunk-info">
-              <div class="sub-chunk-name"><span class="link-icon">💿</span> ${esc(sub.name)}</div>
-              <div class="sub-chunk-meta">${subCount} step${subCount !== 1 ? 's' : ''} · ${formatDuration(subDur)}</div>
+              <div class="sub-chunk-name"><span class="link-icon">⟁</span> ${esc(sub.name)}</div>
+              <div class="sub-chunk-meta">${subCount} step${subCount !== 1 ? 's' : ''} · ${formatDuration(subDur)}${isLocked ? ' · snapshot' : ''}</div>
               <div class="sub-chunk-preview" id="${previewId}">
                 ${previewSteps.map(ps => `<div class="sub-chunk-preview-step"><span>${esc(ps.label || 'Untitled')}</span><span>${ps.minutes}m</span></div>`).join('')}
               </div>
             </div>
+            <button class="lock-toggle-btn ${isLocked ? 'locked' : ''}" onclick="event.stopPropagation();window._kachunk.toggleLock(${i})" title="${lockTitle}">${lockIcon}</button>
             <div class="step-reorder">
               <button onclick="event.stopPropagation();window._kachunk.moveStep(${i},-1)" ${i === 0 ? 'disabled style="opacity:0.2"' : ''}>▲</button>
               <button onclick="event.stopPropagation();window._kachunk.moveStep(${i},1)" ${i === editSteps.length - 1 ? 'disabled style="opacity:0.2"' : ''}>▼</button>
@@ -186,6 +190,37 @@ export function pickStepSound(key) {
     if (key !== 'default') previewSound('alarm', key);
   }
   closeStepSoundDropdown();
+}
+
+// ─── Lock Toggle ───
+
+export function toggleLock(stepIdx) {
+  if (stepIdx < 0 || stepIdx >= editSteps.length) return;
+  const step = editSteps[stepIdx];
+  if ((step.type || 'step') !== 'chunk') return;
+
+  if (step.locked) {
+    // Unlock: remove snapshot
+    step.locked = false;
+    delete step.snapshot;
+    delete step.snapshotAt;
+    showToast('Unlocked — using live reference');
+  } else {
+    // Lock: take snapshot of current sub-chunk state
+    const allChunks = loadChunks();
+    const sub = allChunks.find(c => c.id === step.chunkId);
+    if (!sub) return;
+    const flat = flattenChunk(sub, allChunks);
+    step.locked = true;
+    step.snapshot = flat.map(s => ({
+      label: s.label,
+      minutes: s.minutes,
+      sound: s.sound,
+    }));
+    step.snapshotAt = new Date().toISOString();
+    showToast('Locked — snapshot saved');
+  }
+  renderEditSteps();
 }
 
 // ─── Chunk Picker (Add Sub-chunk) ───

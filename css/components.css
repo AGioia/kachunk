@@ -354,6 +354,30 @@
   font-style: italic;
 }
 
+/* ═══ Lock Toggle ═══ */
+.lock-toggle-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(26, 22, 19, 0.03);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.lock-toggle-btn:active {
+  background: rgba(26, 22, 19, 0.08);
+}
+
+.lock-toggle-btn.locked {
+  background: var(--accent-soft);
+}
+
 .sub-chunk-preview {
   max-height: 0;
   overflow: hidden;
