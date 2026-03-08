@@ -51,6 +51,14 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.chunk-card.swiped .card-delete-bg {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .card-delete-bg svg {

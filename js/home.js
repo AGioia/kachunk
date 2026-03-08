@@ -112,9 +112,10 @@ function wireSwipeHandlers() {
       swipeState.currentX = e.touches[0].clientX;
       const dx = swipeState.currentX - swipeState.startX;
       if (dx < 0) {
-        // Swipe left only, capped at -100px
         const offset = Math.max(dx, -100);
         content.style.transform = `translateX(${offset}px)`;
+        // Show delete bg as soon as swipe starts
+        if (dx < -20) card.classList.add('swiped');
       }
     }, { passive: true });
 
@@ -124,13 +125,13 @@ function wireSwipeHandlers() {
       content.style.transition = 'transform 0.25s ease';
 
       if (dx < -60) {
-        // Swiped far enough — show delete
         content.style.transform = 'translateX(-80px)';
+        card.classList.add('swiped');
         const chunkId = card.dataset.chunkId;
-        // Auto-reset after 4 seconds if not deleted
         setTimeout(() => {
           if (content.style.transform === 'translateX(-80px)') {
             content.style.transform = 'translateX(0)';
+            card.classList.remove('swiped');
           }
         }, 4000);
 
@@ -147,6 +148,7 @@ function wireSwipeHandlers() {
         };
       } else {
         content.style.transform = 'translateX(0)';
+        card.classList.remove('swiped');
       }
       swipeState.cardEl = null;
     });
