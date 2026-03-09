@@ -52,6 +52,16 @@ body {
   flex-shrink: 0;
 }
 
+.version-tag {
+  font-size: 10px;
+  font-weight: 400;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
 .header .wordmark {
   font-size: 13px;
   font-weight: 700;
