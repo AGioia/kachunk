@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kachunk-v12';
+const CACHE_NAME = 'kachunk-v13';
 
 // Use relative paths so the SW works on any base path (GitHub Pages /kachunk/, custom domain /, etc.)
 const ASSETS = [

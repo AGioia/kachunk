@@ -42,7 +42,13 @@ export function renderHome() {
     return `
       <div class="chunk-card ${isActive ? 'active-chunk' : ''}" data-chunk-id="${c.id}">
         <div class="card-content">
-          <button class="chrono-thumb ${isActive ? 'is-active' : ''}" onclick="window._kachunk.toggleChunkFromDrawer('${c.id}')" aria-label="${isActive ? 'Pause' : 'Play'} ${esc(c.name)}">
+          <button class="chrono-thumb ${isActive ? 'is-active' : ''}"
+            ontouchstart="window._kachunk.chronoTouchStart('${c.id}')"
+            ontouchend="window._kachunk.chronoTouchEnd('${c.id}')"
+            onmousedown="window._kachunk.chronoTouchStart('${c.id}')"
+            onmouseup="window._kachunk.chronoTouchEnd('${c.id}')"
+            onclick="return false"
+            aria-label="${isActive ? 'Pause' : 'Play'} ${esc(c.name)}">
             <svg viewBox="0 0 44 44">
               <circle fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
               <circle fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
@@ -80,6 +86,28 @@ function getScheduleText(sched) {
   const dayStr = sched.days.map(d => DAY_NAMES[d]).join(', ');
   const timeStr = formatTime12(sched.startTime);
   return `${dayStr} at ${timeStr}`;
+}
+
+// ─── Long-press detection for schedule ───
+
+let longPressTimer = null;
+let longPressTriggered = false;
+
+export function chronoTouchStart(chunkId) {
+  longPressTriggered = false;
+  longPressTimer = setTimeout(() => {
+    longPressTriggered = true;
+    vibrateDevice([30]);
+    const fn = window._kachunk._openSchedule;
+    if (fn) fn(chunkId);
+  }, 500);
+}
+
+export function chronoTouchEnd(chunkId) {
+  clearTimeout(longPressTimer);
+  if (longPressTriggered) return; // schedule already opened
+  // Short tap — toggle play/pause
+  toggleChunkFromDrawer(chunkId);
 }
 
 // ─── Chrono thumb: toggle play/pause from drawer ───
