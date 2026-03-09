@@ -75,18 +75,26 @@ function getEffectiveBg() {
 
 // ─── Start Player ───
 
+// Opens the player view for a chunk.
+// If the chunk is already loaded and running, just shows the screen (no reset).
+// If it's a new chunk or different chunk, initializes fresh.
 export function startPlayer(id) {
-  console.log('[KaChunk] startPlayer called with id:', id);
   const chunks = loadChunks();
-  console.log('[KaChunk] chunks loaded:', chunks.length);
-  playerChunk = chunks.find(c => c.id === id);
-  if (!playerChunk) { console.log('[KaChunk] chunk not found for id:', id); return; }
-  console.log('[KaChunk] found chunk:', playerChunk.name, 'steps:', playerChunk.steps?.length);
+  const chunk = chunks.find(c => c.id === id);
+  if (!chunk) return;
 
-  playerFlatSteps = flattenChunk(playerChunk, chunks);
-  console.log('[KaChunk] flatSteps:', playerFlatSteps.length);
-  if (playerFlatSteps.length === 0) { console.log('[KaChunk] no flat steps, aborting'); return; }
+  const flat = flattenChunk(chunk, chunks);
+  if (flat.length === 0) return;
 
+  // If we're already viewing this chunk, just show the screen
+  if (playerChunk && playerChunk.id === id) {
+    showScreen('playerScreen');
+    return;
+  }
+
+  // New chunk — initialize
+  playerChunk = chunk;
+  playerFlatSteps = flat;
   playerStepIdx = 0;
   playerPlaying = false;
   isOvertime = false;
@@ -100,8 +108,6 @@ export function startPlayer(id) {
   renderPlayerSteps();
 
   document.getElementById('playerTitle').textContent = playerChunk.name;
-  
-  // Reset breadcrumb
   document.getElementById('breadcrumbBar').classList.remove('expanded');
   updatePlayPauseIcon(false);
 
@@ -109,15 +115,26 @@ export function startPlayer(id) {
   const voiceBtn = document.getElementById('voiceToggleBtn');
   if (voiceBtn) voiceBtn.style.opacity = s.voice ? '1' : '0.4';
 
-  // Reset chrono state
-  const face = document.getElementById('chronoFace');
-  face.className = 'chrono-face';
-
-  // Reset kachunk button
-  const kb = document.getElementById('kachunkBtn');
-  kb.classList.remove('ready-pulse', 'snapping');
+  document.getElementById('chronoFace').className = 'chrono-face';
+  document.getElementById('kachunkBtn').classList.remove('ready-pulse', 'snapping');
 
   showScreen('playerScreen');
+}
+
+// Opens player and resumes from current state (called from drawer)
+export function openPlayerView(id) {
+  const chunks = loadChunks();
+  const chunk = chunks.find(c => c.id === id);
+  if (!chunk) return;
+
+  // If already loaded for this chunk, just navigate
+  if (playerChunk && playerChunk.id === id) {
+    showScreen('playerScreen');
+    return;
+  }
+
+  // Otherwise initialize
+  startPlayer(id);
 }
 
 // ─── Step Loading ───
@@ -258,12 +275,12 @@ function renderPlayerSteps() {
     else if (i === playerStepIdx) cls = isOvertime ? 'current overtime' : 'current';
 
     const sourceHtml = s.sourceChunk
-      ? `<div class="psi-source"><span class="link-icon">⟁</span> ${esc(s.sourceChunk)}</div>`
+      ? `<div class="psi-source"><span class="link-icon">&#x27C1;</span> ${esc(s.sourceChunk)}</div>`
       : '';
 
     return `
-      <div class="player-step-item ${cls}">
-        <div class="psi-num">${i < playerStepIdx ? '✓' : (i + 1)}</div>
+      <div class="player-step-item ${cls}" onclick="window._kachunk.jumpToStep(${i})">
+        <div class="psi-num">${i < playerStepIdx ? '&#x2713;' : (i + 1)}</div>
         <div class="psi-label-wrap">
           ${sourceHtml}
           <div class="psi-label">${esc(s.label || 'Step ' + (i + 1))}</div>
@@ -513,6 +530,29 @@ export function playerNext() {
   }
 }
 
+// Jump to any step — user tapped it in the step list
+export function jumpToStep(idx) {
+  if (idx < 0 || idx >= playerFlatSteps.length) return;
+  if (idx === playerStepIdx) return; // already there
+
+  playUiSound('whoosh');
+  vibrateDevice([10]);
+
+  // Clear current overtime state
+  isOvertime = false;
+  overtimeSeconds = 0;
+  clearInterval(overtimePulseInterval);
+
+  playerStepIdx = idx;
+  loadPlayerStep();
+
+  if (playerPlaying) {
+    clearInterval(playerInterval);
+    playerInterval = setInterval(tick, 1000);
+    announceStep(playerFlatSteps[playerStepIdx]?.label);
+  }
+}
+
 export function playerPrev() {
   if (playerStepIdx > 0) {
     playUiSound('whoosh');
@@ -528,6 +568,14 @@ export function playerPrev() {
   }
 }
 
+// Navigate back to drawer without destroying state.
+// Chunk keeps running in background.
+export function goBackToDrawer() {
+  goHome();
+  renderHome();
+}
+
+// Full stop — resets everything.
 export function stopAndGoHome() {
   clearInterval(playerInterval);
   clearInterval(overtimePulseInterval);
@@ -535,7 +583,10 @@ export function stopAndGoHome() {
   releaseWakeLock();
   playerPlaying = false;
   isOvertime = false;
+  overtimeSeconds = 0;
   playerChunk = null;
+  playerFlatSteps = [];
+  playerStepIdx = 0;
   goHome();
   renderHome();
 }

@@ -1,13 +1,19 @@
 // ═══════════════════════════════════════════════════
 // KaChunk — Chunk Drawer (Home Screen)
-// Tap chrono = open player, arrow = edit, delete in editor
+// Chrono thumb = play/pause, card body = open player, arrow = edit
 // ═══════════════════════════════════════════════════
 
 import { loadChunks, getTotalDuration, getFlatStepCount, hasSubChunks } from './store.js';
 import { esc, formatDuration, formatTime12 } from './ui.js';
-import { showScreen, goHome } from './router.js';
+import { playUiSound, vibrateDevice } from './audio.js';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// Simple in-memory play state tracker
+// (Lightweight — the real state lives in the player module)
+const activeChunks = new Set();
+
+export function isChunkActive(id) { return activeChunks.has(id); }
 
 // ─── Render Home ───
 
@@ -31,11 +37,12 @@ export function renderHome() {
     const stepCount = getFlatStepCount(c, chunks);
     const hasSubs = hasSubChunks(c);
     const schedText = getScheduleText(c.schedule);
+    const isActive = activeChunks.has(c.id);
 
     return `
-      <div class="chunk-card" data-chunk-id="${c.id}">
+      <div class="chunk-card ${isActive ? 'active-chunk' : ''}" data-chunk-id="${c.id}">
         <div class="card-content">
-          <button class="chrono-thumb" onclick="window._kachunk.playChunk('${c.id}')" aria-label="Play ${esc(c.name)}">
+          <button class="chrono-thumb ${isActive ? 'is-active' : ''}" onclick="window._kachunk.toggleChunkFromDrawer('${c.id}')" aria-label="${isActive ? 'Pause' : 'Play'} ${esc(c.name)}">
             <svg viewBox="0 0 44 44">
               <circle fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
               <circle fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
@@ -43,15 +50,19 @@ export function renderHome() {
                 transform="rotate(-90 22 22)"/>
             </svg>
             <div class="ct-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              ${isActive
+                ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="6" width="3" height="12" rx="1"/><rect x="14" y="6" width="3" height="12" rx="1"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
+              }
             </div>
           </button>
-          <div class="card-info" onclick="window._kachunk.playChunk('${c.id}')">
+          <div class="card-info" onclick="window._kachunk.openPlayer('${c.id}')">
             <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}</div>
             <div class="card-meta">
               <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
               <span class="dot">·</span>
               <span>${formatDuration(totalMin)}</span>
+              ${isActive ? '<span class="dot">·</span><span class="card-status playing">Active</span>' : ''}
             </div>
             ${schedText ? `<div class="card-schedule"><span class="sched-dot"></span> ${schedText}</div>` : ''}
           </div>
@@ -71,16 +82,40 @@ function getScheduleText(sched) {
   return `${dayStr} at ${timeStr}`;
 }
 
-// ─── Card Actions ───
+// ─── Chrono thumb: toggle play/pause from drawer ───
 
-export function playChunk(chunkId) {
-  console.log('[KaChunk] playChunk:', chunkId);
+export function toggleChunkFromDrawer(chunkId) {
+  if (activeChunks.has(chunkId)) {
+    // Pause — remove from active set
+    activeChunks.delete(chunkId);
+    playUiSound('clickPause');
+    vibrateDevice([10]);
+  } else {
+    // Start/resume
+    activeChunks.add(chunkId);
+    playUiSound('clickPlay');
+    vibrateDevice([10, 20, 40]);
+    // Make sure the player module is initialized for this chunk
+    const fn = window._kachunk._startPlayer;
+    if (fn) fn(chunkId);
+  }
+  renderHome();
+}
+
+// ─── Card body: open player view ───
+
+export function openPlayer(chunkId) {
+  // Ensure chunk is active
+  if (!activeChunks.has(chunkId)) {
+    activeChunks.add(chunkId);
+  }
   const fn = window._kachunk._startPlayer;
   if (fn) fn(chunkId);
 }
 
+// ─── Arrow: open editor ───
+
 export function editChunk(chunkId) {
-  console.log('[KaChunk] editChunk:', chunkId);
   const fn = window._kachunk._openEditor;
   if (fn) fn(chunkId);
 }
