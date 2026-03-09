@@ -49,7 +49,7 @@ class ChunkEngine {
   // Compute live secondsLeft / overtimeSeconds from wall clock
   _calcStep(st) {
     if (st.status === 'running' || st.status === 'overtime') {
-      const elapsed = st.priorElapsed + (Date.now() - st.startedAt) / 1000;
+      const elapsed = st.priorElapsed + (st.startedAt ? (Date.now() - st.startedAt) / 1000 : 0);
       const left = st.totalSeconds - elapsed;
       return { secondsLeft: Math.max(0, Math.round(left)), overtimeSeconds: left < 0 ? Math.round(-left) : 0, elapsed };
     } else if (st.status === 'paused') {
@@ -64,7 +64,7 @@ class ChunkEngine {
   // Convenience: get computed values for a step's state
   static calc(st) {
     if (st.status === 'running' || st.status === 'overtime') {
-      const elapsed = st.priorElapsed + (Date.now() - st.startedAt) / 1000;
+      const elapsed = st.priorElapsed + (st.startedAt ? (Date.now() - st.startedAt) / 1000 : 0);
       const left = st.totalSeconds - elapsed;
       return { secondsLeft: Math.max(0, Math.round(left)), overtimeSeconds: left < 0 ? Math.round(-left) : 0 };
     } else if (st.status === 'paused') {
@@ -819,7 +819,7 @@ export function onStepTap(idx) {
   if (!st) return;
   eng.focusedIdx = idx;
   if (st.status === 'idle' && eng.playing) {
-    st.status = 'running';
+    eng._startStep(st);
     playUiSound('clickPlay'); vibrateDevice([10, 20, 40]);
     announceStep(eng.flatSteps[idx].label);
     ensureGlobalTick();
