@@ -820,3 +820,109 @@
   border-color: var(--accent);
   color: white;
 }
+
+/* ═══ Loop System ═══ */
+
+.loop-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: var(--text-3);
+}
+
+.loop-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.loop-btn.active {
+  background: rgba(196, 75, 26, 0.08);
+  color: var(--accent);
+}
+
+/* Loop color bar on step items */
+.psi-loop-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  transition: width 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.psi-loop-bar.selecting {
+  width: 5px;
+}
+
+.psi-loop-bar.empty {
+  width: 2px;
+  background: var(--border);
+  opacity: 0.3;
+}
+
+.psi-loop-seq {
+  font-size: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  color: rgba(255,255,255,0.9);
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.psi-loop-bar.selecting .psi-loop-seq {
+  opacity: 1;
+}
+
+/* Loop mode toggle button */
+.psi-loop-mode {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: none;
+  color: var(--text-3);
+  font-size: 8px;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Player step items need position:relative for the loop bar */
+.player-step-item {
+  position: relative;
+}
+
+/* Chrono dial mode */
+.chrono-face.loop-dial {
+  cursor: grab;
+}
+
+.chrono-face.loop-dial:active {
+  cursor: grabbing;
+}
+
+/* Loop active step shimmer */
+@keyframes loopShimmer {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.psi-loop-bar:not(.empty):not(.selecting) {
+  animation: loopShimmer 3s ease-in-out infinite;
+}

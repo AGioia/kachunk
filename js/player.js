@@ -25,6 +25,9 @@ const OVERTIME_RADIUS = 101, OVERTIME_CIRC = 2 * Math.PI * OVERTIME_RADIUS;
 // ChunkEngine — one per active chunk
 // ═══════════════════════════════════════════════════
 
+// Loop group colors (max 5 groups)
+const LOOP_COLORS = ['#C44B1A', '#2A9D8F', '#D4A03C', '#8B3A3A', '#5B7BA5'];
+
 class ChunkEngine {
   constructor(chunk, flatSteps) {
     this.chunk = chunk;
@@ -32,6 +35,10 @@ class ChunkEngine {
     this.flatSteps = flatSteps;
     this.focusedIdx = 0;
     this.playing = false;
+    // Loop system
+    this.loopGroups = [];      // [{ steps: [idx, idx, ...], mode: 'halt'|'auto', laps: 0 }]
+    this.loopSelectMode = false;
+    this.loopSelectGroupIdx = 0; // which group is being edited/viewed
     flatSteps.forEach(s => this._initStep(s));
   }
 
@@ -102,6 +109,82 @@ class ChunkEngine {
   focusedStep() { return this.flatSteps[this.focusedIdx]; }
   focusedState() { return this.focusedStep()?._state; }
   focusedLabel() { const s = this.focusedStep(); return s ? (s.label || 'Step ' + (this.focusedIdx + 1)) : ''; }
+
+  // ─── Loop Group Methods ───
+
+  getStepLoopGroup(stepIdx) {
+    return this.loopGroups.findIndex(g => g.steps.includes(stepIdx));
+  }
+
+  getStepLoopSeq(stepIdx) {
+    const gi = this.getStepLoopGroup(stepIdx);
+    if (gi === -1) return -1;
+    return this.loopGroups[gi].steps.indexOf(stepIdx);
+  }
+
+  toggleStepInGroup(stepIdx, groupIdx) {
+    if (groupIdx < 0 || groupIdx >= this.loopGroups.length) return;
+    const group = this.loopGroups[groupIdx];
+    const pos = group.steps.indexOf(stepIdx);
+    if (pos !== -1) {
+      // Remove from this group
+      group.steps.splice(pos, 1);
+    } else {
+      // Remove from any other group first
+      this.loopGroups.forEach((g, i) => {
+        if (i !== groupIdx) {
+          const p = g.steps.indexOf(stepIdx);
+          if (p !== -1) g.steps.splice(p, 1);
+        }
+      });
+      group.steps.push(stepIdx);
+    }
+  }
+
+  toggleStepMode(stepIdx) {
+    const gi = this.getStepLoopGroup(stepIdx);
+    if (gi === -1) return;
+    const group = this.loopGroups[gi];
+    // Per-step override stored on _state
+    const st = this.flatSteps[stepIdx]._state;
+    st.loopMode = st.loopMode === 'auto' ? 'halt' : 'auto';
+  }
+
+  getStepLoopMode(stepIdx) {
+    const gi = this.getStepLoopGroup(stepIdx);
+    if (gi === -1) return null;
+    const st = this.flatSteps[stepIdx]._state;
+    return st.loopMode || this.loopGroups[gi].mode;
+  }
+
+  // Get next step in the loop group sequence (wraps around)
+  getNextInLoop(stepIdx) {
+    const gi = this.getStepLoopGroup(stepIdx);
+    if (gi === -1) return -1;
+    const group = this.loopGroups[gi];
+    const seq = group.steps.indexOf(stepIdx);
+    if (seq === -1) return -1;
+    const nextSeq = (seq + 1) % group.steps.length;
+    if (nextSeq === 0) group.laps++; // completed a full cycle
+    return group.steps[nextSeq];
+  }
+
+  getLoopLaps(stepIdx) {
+    const gi = this.getStepLoopGroup(stepIdx);
+    if (gi === -1) return 0;
+    return this.loopGroups[gi].laps;
+  }
+
+  clearAllLoopGroups() {
+    this.loopGroups = [];
+    this.flatSteps.forEach(s => { delete s._state.loopMode; });
+  }
+
+  ensureGroupExists(groupIdx) {
+    while (this.loopGroups.length <= groupIdx) {
+      this.loopGroups.push({ steps: [], mode: 'halt', laps: 0 });
+    }
+  }
 
   // Tick: check for status transitions (running → overtime). Returns indices that just went overtime.
   tick() {
@@ -262,6 +345,22 @@ class ChunkEngine {
   advanceFocused() {
     const st = this.focusedState();
     if (!st) return;
+
+    // Check if step is in a loop group
+    const loopNext = this.getNextInLoop(this.focusedIdx);
+    if (loopNext !== -1) {
+      // In a loop: reset current step for next lap, advance to next in loop
+      this._initStep(this.flatSteps[this.focusedIdx]); // reset for reuse
+      this.focusedIdx = loopNext;
+      const nst = this.flatSteps[loopNext]._state;
+      if (nst.status === 'done' || nst.status === 'idle') {
+        this._initStep(this.flatSteps[loopNext]); // reset for reuse
+        if (this.playing) this._startStep(this.flatSteps[loopNext]._state);
+      }
+      return;
+    }
+
+    // Not in a loop: normal progression
     this._completeStep(st);
     const nextIdx = this.findNext(this.focusedIdx);
     if (nextIdx !== -1) {
@@ -332,8 +431,27 @@ function globalTick() {
   engines.forEach((eng) => {
     const newOT = eng.tick();
     if (newOT.length > 0) {
-      anyAlarm = true;
-      // If this is the viewed engine, update UI
+      // Check for auto-pass-through loops
+      newOT.forEach(i => {
+        const mode = eng.getStepLoopMode(i);
+        if (mode === 'auto') {
+          // Auto-advance this step in its loop
+          const loopNext = eng.getNextInLoop(i);
+          if (loopNext !== -1) {
+            eng._initStep(eng.flatSteps[i]);
+            const nst = eng.flatSteps[loopNext]._state;
+            if (nst.status === 'done' || nst.status === 'idle') eng._initStep(eng.flatSteps[loopNext]);
+            eng._startStep(eng.flatSteps[loopNext]._state);
+            if (i === eng.focusedIdx) eng.focusedIdx = loopNext;
+            return; // don't alarm for auto-loops
+          }
+        }
+      });
+
+      // Filter out auto-looped steps for alarm
+      const alarmSteps = newOT.filter(i => eng.getStepLoopMode(i) !== 'auto');
+      if (alarmSteps.length > 0) anyAlarm = true;
+
       if (eng.id === viewingId) {
         if (newOT.includes(eng.focusedIdx)) {
           document.getElementById('kachunkBtn')?.classList.add('ready-pulse');
@@ -398,6 +516,7 @@ function switchPlayerView(eng) {
   if (voiceBtn) voiceBtn.style.opacity = s.voice ? '1' : '0.4';
   document.getElementById('chronoFace').className = 'chrono-face';
   document.getElementById('kachunkBtn').classList.remove('ready-pulse', 'snapping');
+  updateLoopUI();
 }
 
 function updateFocusedDisplay() {
@@ -549,10 +668,31 @@ function renderPlayerSteps() {
       : (st.status === 'running' || st.status === 'overtime') ? '&#x25CF;'
       : st.status === 'paused' ? '&#x25CB;' : (i + 1);
 
-    return `<div class="player-step-item ${cls}" onclick="window._kachunk.onStepTap(${i})">
+    // Loop group indicator
+    const gi = eng.getStepLoopGroup(i);
+    const loopColor = gi !== -1 ? LOOP_COLORS[gi % LOOP_COLORS.length] : '';
+    const loopSeq = gi !== -1 ? eng.getStepLoopSeq(i) + 1 : 0;
+    const inSelectGroup = eng.loopSelectMode && gi === eng.loopSelectGroupIdx;
+    const barWidth = eng.loopSelectMode && gi !== -1 ? (inSelectGroup ? '5px' : '3px') : (gi !== -1 ? '2px' : '0');
+    const loopBarHtml = gi !== -1
+      ? `<div class="psi-loop-bar${inSelectGroup ? ' selecting' : ''}" style="background:${loopColor};width:${barWidth}"><span class="psi-loop-seq">${loopSeq}</span></div>`
+      : (eng.loopSelectMode ? '<div class="psi-loop-bar empty"></div>' : '');
+
+    // Loop mode toggle (only in select mode)
+    const loopModeHtml = eng.loopSelectMode && gi !== -1
+      ? `<button class="psi-loop-mode" onclick="event.stopPropagation();window._kachunk.loopStepToggleMode(${i})" title="${eng.getStepLoopMode(i) === 'auto' ? 'Auto' : 'Halt'}">${eng.getStepLoopMode(i) === 'auto' ? '&#x25B6;' : '&#x25CF;'}</button>`
+      : '';
+
+    // In loop select mode, tapping a step toggles it in the group
+    const tapHandler = eng.loopSelectMode
+      ? `window._kachunk.loopStepTap(${i})`
+      : `window._kachunk.onStepTap(${i})`;
+
+    return `<div class="player-step-item ${cls}" onclick="${tapHandler}">
+        ${loopBarHtml}
         <div class="psi-num">${icon}</div>
         <div class="psi-label-wrap">${sourceHtml}<div class="psi-label">${esc(s.label || 'Step ' + (i + 1))}</div></div>
-        ${timerHtml}<div class="psi-dur">${s.minutes}m</div>
+        ${timerHtml}${loopModeHtml}<div class="psi-dur">${s.minutes}m</div>
       </div>`;
   }).join('');
 }
@@ -843,6 +983,171 @@ export function playerPrev() {
   updateFocusedDisplay(); renderPlayerSteps();
 }
 export function jumpToStep(idx) { onStepTap(idx); }
+
+// ─── Loop Select Mode ───
+
+let loopLongPressTimer = null;
+let loopLongPressTriggered = false;
+
+export function loopBtnDown() {
+  loopLongPressTriggered = false;
+  loopLongPressTimer = setTimeout(() => {
+    loopLongPressTriggered = true;
+    const eng = viewingEngine();
+    if (!eng) return;
+    eng.clearAllLoopGroups();
+    eng.loopSelectMode = false;
+    vibrateDevice([50, 30, 50]);
+    showToast('All loops cleared');
+    renderPlayerSteps(); updateLoopUI();
+  }, 600);
+}
+
+export function loopBtnUp() {
+  clearTimeout(loopLongPressTimer);
+  if (loopLongPressTriggered) return;
+
+  const eng = viewingEngine();
+  if (!eng) return;
+
+  if (!eng.loopSelectMode) {
+    // Enter loop select mode, start at group 0
+    eng.loopSelectMode = true;
+    eng.loopSelectGroupIdx = 0;
+    eng.ensureGroupExists(0);
+    playUiSound('clickPlay');
+  } else {
+    // Cycle through groups
+    const nextIdx = eng.loopSelectGroupIdx + 1;
+    // If current group is empty and we're past all real groups → exit
+    const currentGroup = eng.loopGroups[eng.loopSelectGroupIdx];
+    if (currentGroup && currentGroup.steps.length === 0) {
+      // On empty slot — one more tap exits
+      eng.loopSelectMode = false;
+      // Clean up empty groups
+      eng.loopGroups = eng.loopGroups.filter(g => g.steps.length > 0);
+      playUiSound('clickPause');
+    } else if (nextIdx <= eng.loopGroups.length) {
+      // Move to next group (or empty slot)
+      eng.loopSelectGroupIdx = nextIdx;
+      eng.ensureGroupExists(nextIdx);
+      playUiSound('whoosh');
+    }
+  }
+  renderPlayerSteps(); updateLoopUI();
+}
+
+export function loopBtnCancel() {
+  clearTimeout(loopLongPressTimer);
+  loopLongPressTriggered = false;
+}
+
+export function loopStepTap(stepIdx) {
+  const eng = viewingEngine();
+  if (!eng || !eng.loopSelectMode) return;
+  eng.toggleStepInGroup(stepIdx, eng.loopSelectGroupIdx);
+  playUiSound('clickPlay');
+  vibrateDevice([10]);
+  renderPlayerSteps(); updateLoopUI();
+}
+
+export function loopStepToggleMode(stepIdx) {
+  const eng = viewingEngine();
+  if (!eng || !eng.loopSelectMode) return;
+  eng.toggleStepMode(stepIdx);
+  vibrateDevice([10]);
+  renderPlayerSteps();
+}
+
+// Chrono dial touch for group scrolling
+let dialStartAngle = null;
+let dialStartGroup = 0;
+
+export function chronoDialStart(e) {
+  const eng = viewingEngine();
+  if (!eng || !eng.loopSelectMode) return;
+  const touch = e.touches ? e.touches[0] : e;
+  const svg = document.getElementById('chronoSvg');
+  if (!svg) return;
+  const rect = svg.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  dialStartAngle = Math.atan2(touch.clientY - cy, touch.clientX - cx);
+  dialStartGroup = eng.loopSelectGroupIdx;
+  e.preventDefault();
+}
+
+export function chronoDialMove(e) {
+  const eng = viewingEngine();
+  if (!eng || !eng.loopSelectMode || dialStartAngle === null) return;
+  const touch = e.touches ? e.touches[0] : e;
+  const svg = document.getElementById('chronoSvg');
+  if (!svg) return;
+  const rect = svg.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const currentAngle = Math.atan2(touch.clientY - cy, touch.clientX - cx);
+  let delta = currentAngle - dialStartAngle;
+  // Normalize to [-PI, PI]
+  if (delta > Math.PI) delta -= 2 * Math.PI;
+  if (delta < -Math.PI) delta += 2 * Math.PI;
+  // Each 60° = one group
+  const groupDelta = Math.round(delta / (Math.PI / 3));
+  const maxGroups = eng.loopGroups.length + 1; // +1 for empty slot
+  let newIdx = dialStartGroup + groupDelta;
+  newIdx = Math.max(0, Math.min(newIdx, maxGroups - 1));
+  if (newIdx !== eng.loopSelectGroupIdx) {
+    eng.loopSelectGroupIdx = newIdx;
+    eng.ensureGroupExists(newIdx);
+    playUiSound('whoosh');
+    renderPlayerSteps(); updateLoopUI();
+  }
+  e.preventDefault();
+}
+
+export function chronoDialEnd() {
+  dialStartAngle = null;
+}
+
+function updateLoopUI() {
+  const eng = viewingEngine();
+  const btn = document.getElementById('loopBtn');
+  if (!btn || !eng) return;
+
+  if (eng.loopSelectMode) {
+    btn.classList.add('active');
+    const group = eng.loopGroups[eng.loopSelectGroupIdx];
+    const isEmpty = !group || group.steps.length === 0;
+    const groupNum = eng.loopSelectGroupIdx + 1;
+    const color = LOOP_COLORS[eng.loopSelectGroupIdx % LOOP_COLORS.length];
+
+    btn.innerHTML = isEmpty
+      ? `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="${color}" stroke-width="1.5" stroke-dasharray="3 2"/></svg>`
+      : `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="${color}" stroke-width="1.5"/><text x="12" y="16" text-anchor="middle" fill="${color}" font-size="11" font-family="'JetBrains Mono'">${groupNum}</text></svg>`;
+
+    // Add dial mode class to chrono
+    document.getElementById('chronoFace')?.classList.add('loop-dial');
+  } else {
+    btn.classList.remove('active');
+    // Show lap count for focused step's loop, or default icon
+    const laps = eng.getLoopLaps(eng.focusedIdx);
+    const gi = eng.getStepLoopGroup(eng.focusedIdx);
+
+    if (gi !== -1) {
+      const color = LOOP_COLORS[gi % LOOP_COLORS.length];
+      // Hash marks around circle for laps
+      let hashes = '';
+      for (let i = 0; i < Math.min(laps, 12); i++) {
+        const angle = i * 30;
+        hashes += `<line x1="12" y1="2" x2="12" y2="4" stroke="${color}" stroke-width="1" transform="rotate(${angle} 12 12)"/>`;
+      }
+      btn.innerHTML = `<svg viewBox="0 0 24 24">${hashes}<path d="M12 6a6 6 0 1 1-3 11.2" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/><path d="M9 17.2l-2 1.5 0.5-2.5" fill="${color}"/></svg>`;
+    } else {
+      btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 6a6 6 0 1 1-3 11.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/><path d="M9 17.2l-2 1.5 0.5-2.5" fill="currentColor" opacity="0.3"/></svg>`;
+    }
+    document.getElementById('chronoFace')?.classList.remove('loop-dial');
+  }
+}
 
 // ─── Navigate ───
 
