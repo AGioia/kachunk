@@ -147,14 +147,21 @@
 
     <!-- Controls: prev (small) | play/pause | KACHUNK (big next) -->
     <div class="player-controls">
-      <button class="prev-btn" onclick="window._kachunk.playerPrev()" aria-label="Previous step">
+      <button class="prev-btn" id="restartBtn"
+        ontouchstart="window._kachunk.restartDown()"
+        ontouchend="window._kachunk.restartUp()"
+        ontouchcancel="window._kachunk.restartCancel()"
+        onmousedown="window._kachunk.restartDown()"
+        onmouseup="window._kachunk.restartUp()"
+        onclick="return false"
+        aria-label="Restart step or reset all">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12l8.5 6V6z"/></svg>
       </button>
-      <button class="play-btn" id="playPauseBtn" onclick="window._kachunk.togglePlay()" aria-label="Play/Pause">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <button class="play-btn" id="pauseBtn" onclick="window._kachunk.smartPause()" aria-label="Pause">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
       </button>
-      <button class="kachunk-btn" id="kachunkBtn" onclick="window._kachunk.playerNext()" aria-label="Next step — KaChunk!">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 18l7-6-7-6zM11 18l7-6-7-6z"/><path d="M18 6h2v12h-2z"/></svg>
+      <button class="kachunk-btn" id="kachunkBtn" onclick="window._kachunk.kachunkAction()" aria-label="Play or Next">
+        <svg id="kachunkIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </button>
     </div>
 

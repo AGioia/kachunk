@@ -268,14 +268,7 @@ function resetOvertimeTicks() {
   document.querySelectorAll('#chronoTicks .tick.overtime').forEach(t => t.classList.remove('overtime'));
 }
 
-function updatePlayPauseIcon(playing) {
-  const btn = document.getElementById('playPauseBtn');
-  if (playing) {
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
-  } else {
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-  }
-}
+// updatePlayPauseIcon removed — pause button is always pause, kachunk icon is dynamic
 
 // ─── Step List ───
 
@@ -398,6 +391,116 @@ export function scrollToStep(idx) {
   if (stepItems[idx]) stepItems[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
+// ─── Restart Button (prev/back in control bar) ───
+// Tap = restart focused step timer. Long press = master reset all.
+
+let restartTimer = null;
+let restartTriggered = false;
+
+export function restartDown() {
+  restartTriggered = false;
+  restartTimer = setTimeout(() => {
+    restartTriggered = true;
+    vibrateDevice([50, 30, 50]);
+    // Master reset: all steps back to idle
+    playerFlatSteps.forEach(s => initStepState(s));
+    focusedStepIdx = 0;
+    playerPlaying = false;
+    clearInterval(tickInterval);
+    tickInterval = null;
+    stopBgAudio();
+    releaseWakeLock();
+    showToast('All reset');
+    updateFocusedDisplay();
+    renderPlayerSteps();
+    updateKachunkIcon();
+  }, 600);
+}
+
+export function restartUp() {
+  clearTimeout(restartTimer);
+  if (restartTriggered) return;
+
+  // Short tap: restart the focused step's timer
+  const step = playerFlatSteps[focusedStepIdx];
+  if (step && step._state) {
+    const st = step._state;
+    if (st.status === 'running' || st.status === 'overtime') {
+      st.secondsLeft = st.totalSeconds;
+      st.overtimeSeconds = 0;
+      st.status = 'running';
+      playUiSound('whoosh');
+      vibrateDevice([10]);
+      document.getElementById('chronoFace').className = 'chrono-face';
+      document.getElementById('kachunkBtn').classList.remove('ready-pulse');
+    } else if (st.status === 'idle' || st.status === 'done') {
+      // Restart a completed or idle step
+      st.secondsLeft = st.totalSeconds;
+      st.overtimeSeconds = 0;
+      st.status = playerPlaying ? 'running' : 'idle';
+      playUiSound('whoosh');
+      vibrateDevice([10]);
+      if (playerPlaying) ensureTickRunning();
+    }
+    updateFocusedDisplay();
+    renderPlayerSteps();
+  }
+}
+
+export function restartCancel() {
+  clearTimeout(restartTimer);
+  restartTriggered = false;
+}
+
+// ─── Smart Pause Button ───
+// 1st press: pause just the focused step
+// 2nd press (focused already paused): master pause all
+
+export function smartPause() {
+  const step = playerFlatSteps[focusedStepIdx];
+  const st = step?._state;
+
+  if (st && st.status === 'running') {
+    // Focused step is running → pause just this step
+    st.status = 'idle'; // back to idle (paused individual)
+    playUiSound('clickPause');
+    vibrateDevice([10]);
+
+    // If no more steps are running, auto master-pause
+    const stillRunning = getRunningSteps();
+    if (stillRunning.length === 0) {
+      playerPlaying = false;
+      stopBgAudio();
+      releaseWakeLock();
+      clearInterval(tickInterval);
+      tickInterval = null;
+    }
+  } else if (st && st.status === 'overtime') {
+    // Overtime step — pause it
+    st.status = 'idle';
+    st.secondsLeft = 0; // keep it at zero
+    playUiSound('clickPause');
+    vibrateDevice([10]);
+
+    const stillRunning = getRunningSteps();
+    if (stillRunning.length === 0) {
+      playerPlaying = false;
+      stopBgAudio();
+      releaseWakeLock();
+      clearInterval(tickInterval);
+      tickInterval = null;
+    }
+  } else if (playerPlaying) {
+    // Focused is not running but other things are → master pause
+    pauseAll();
+  }
+  // else: everything already paused, no-op
+
+  updateFocusedDisplay();
+  renderPlayerSteps();
+  updateKachunkIcon();
+}
+
 // ─── Step Interactions ───
 
 // Tap a step: if idle, start it. If running, focus it. If overtime, mark done.
@@ -435,19 +538,40 @@ export function focusStep(idx) {
   }
 }
 
-// ─── Play / Pause (global) ───
+// ─── Controls ───
 
-export function togglePlay() {
-  if (playerPlaying) {
-    pauseAll();
-  } else {
+// KaChunk button: play when paused, complete+next when active
+export function kachunkAction() {
+  if (!playerPlaying) {
+    // PLAY
     resumeOrStartNext();
+    updateKachunkIcon();
+  } else {
+    // COMPLETE + NEXT (same as old playerNext)
+    advanceFocused();
+  }
+}
+
+// Keep togglePlay for backward compat
+export function togglePlay() {
+  if (playerPlaying) masterPause();
+  else kachunkAction();
+}
+
+function updateKachunkIcon() {
+  const icon = document.getElementById('kachunkIcon');
+  if (!icon) return;
+  if (playerPlaying) {
+    // Next/complete icon (double triangle + bar)
+    icon.innerHTML = '<path d="M5 18l7-6-7-6zM11 18l7-6-7-6z"/><path d="M18 6h2v12h-2z"/>';
+  } else {
+    // Play triangle
+    icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
   }
 }
 
 function resumeOrStartNext() {
   playerPlaying = true;
-  updatePlayPauseIcon(true);
   playUiSound('clickPlay');
   startBgAudio(getEffectiveBg());
   requestWakeLock();
@@ -470,7 +594,6 @@ function resumeOrStartNext() {
 
 function pauseAll() {
   playerPlaying = false;
-  updatePlayPauseIcon(false);
   playUiSound('clickPause');
   stopBgAudio();
   releaseWakeLock();
@@ -536,7 +659,7 @@ function globalTick() {
 
 // ─── KaChunk! (Advance focused step) ───
 
-export function playerNext() {
+function advanceFocused() {
   const step = playerFlatSteps[focusedStepIdx];
   if (!step || !step._state) return;
   const st = step._state;
@@ -571,6 +694,10 @@ export function playerNext() {
 
   updateFocusedDisplay();
   renderPlayerSteps();
+}
+
+export function playerNext() {
+  kachunkAction();
 }
 
 export function playerPrev() {
