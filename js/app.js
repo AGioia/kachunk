@@ -5,7 +5,7 @@
 
 import { initIdentity } from './identity.js';
 import { onNavigate, goHome } from './router.js';
-import { renderHome, openPlayer, editChunk, chronoDown, chronoUp, chronoCancel } from './home.js';
+import { renderHome, openPlayer, editChunk, chronoTap } from './home.js';
 import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg, toggleLock, deleteChunkFromEditor } from './editor.js';
 import { startPlayer, openPlayerView, togglePlay, kachunkAction, smartPause, restartDown, restartUp, restartCancel, playerNext, playerPrev, jumpToStep, onStepTap, focusStep, goBackToDrawer, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg, toggleBreadcrumb, closeBreadcrumb, scrollToStep, loopBtnDown, loopBtnUp, loopBtnCancel, loopStepTap, loopStepToggleMode, chronoDialStart, chronoDialMove, chronoDialEnd } from './player.js';
 import { openSchedule, toggleDay, saveSchedule, clearSchedule, initScheduleListeners } from './schedule.js';
@@ -19,9 +19,7 @@ window._kachunk = {
   // Chunk Drawer (Home)
   openPlayer,
   editChunk,
-  chronoDown,
-  chronoUp,
-  chronoCancel,
+  chronoTap,
 
   // Internal refs for home.js to call without circular imports
   _startPlayer: startPlayer,

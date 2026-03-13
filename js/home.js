@@ -100,12 +100,12 @@ export function renderHome() {
       <div class="chunk-card ${active ? 'active-chunk' : ''} ${playing ? 'playing-chunk' : ''} ${active && !playing ? 'paused-chunk' : ''}" data-chunk-id="${c.id}">
         <div class="card-content">
           <button class="chrono-thumb ${active ? 'is-active' : ''}"
-            ontouchstart="window._kachunk.chronoDown('${c.id}')"
-            ontouchend="window._kachunk.chronoUp('${c.id}')"
-            ontouchcancel="window._kachunk.chronoCancel()"
-            onmousedown="window._kachunk.chronoDown('${c.id}')"
-            onmouseup="window._kachunk.chronoUp('${c.id}')"
-            onclick="return false"
+            
+            
+            
+            
+            
+            onclick="event.stopPropagation(); window._kachunk.chronoTap('${c.id}')"
             aria-label="${c.name}">
             <svg viewBox="0 0 44 44">
               <circle fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
@@ -118,7 +118,7 @@ export function renderHome() {
             </svg>
             <div class="ct-dot"></div>
           </button>
-          <div class="card-info" onclick="window._kachunk.openPlayer('${c.id}')">
+          <div class="card-info" onclick="window._kachunk.openPlayer('${c.id}')" style="cursor: pointer; padding: 12px 0;">
             <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}${active && focusedLabel ? `<span class="card-step-label"> · ${esc(focusedLabel)}</span>` : ''}</div>
             <div class="card-meta">
               <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
@@ -152,32 +152,8 @@ let pressTimer = null;
 let pressChunkId = null;
 let pressTriggered = false;
 
-export function chronoDown(chunkId) {
-  pressChunkId = chunkId;
-  pressTriggered = false;
-  const active = isEngineActive(chunkId);
 
-  pressTimer = setTimeout(() => {
-    pressTriggered = true;
-    vibrateDevice([30]);
-
-    if (active) {
-      // Long-press on active chunk = reset
-      stopAndGoHome();  // will remove the engine
-      showToast('Reset');
-      renderHome();
-    } else {
-      // Long-press on idle chunk = schedule
-      const fn = window._kachunk._openSchedule;
-      if (fn) fn(chunkId);
-    }
-  }, 500);
-}
-
-export function chronoUp(chunkId) {
-  clearTimeout(pressTimer);
-  if (pressTriggered) return;
-
+export function chronoTap(chunkId) {
   const active = isEngineActive(chunkId);
   if (active) {
     const playing = isEnginePlaying(chunkId);
@@ -201,10 +177,6 @@ export function chronoUp(chunkId) {
   renderHome();
 }
 
-export function chronoCancel() {
-  clearTimeout(pressTimer);
-  pressTriggered = false;
-}
 
 // ─── Card body: open player ───
 

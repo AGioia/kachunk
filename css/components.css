@@ -205,6 +205,8 @@
 .card-content .card-info {
   flex: 1;
   min-width: 0;
+  padding-block: 10px;
+  cursor: pointer;
 }
 
 .card-content .card-name {
