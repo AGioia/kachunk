@@ -483,6 +483,26 @@ function globalTick() {
   stopGlobalTickIfIdle();
 }
 
+
+// ─── DOM Cache ───
+const DOM = {};
+function initPlayerDOM() {
+  if (DOM.playerTimer) return;
+  const ids = [
+    'playerTimer', 'playerStepLabel', 'playerStepCount', 'ringProgress', 
+    'ringOvertime', 'chronoFace', 'ringMaster', 'ringSubchunk', 'ringSubchunkTrack',
+    'kachunkBtn', 'kachunkIcon', 'playerTitle', 'breadcrumbBar', 'voiceToggleBtn',
+    'chronoTicks', 'playerStepsList', 'dotSidebarTrack', 'breadcrumbCurrent', 
+    'breadcrumbExpanded', 'pauseBtn', 'chronoSvg', 'loopBtn', 'completionSub',
+    'completionOverlay', 'playerBgPicker', 'bgPickerOverlay', 'playerBgPickerPills'
+  ];
+  for (const id of ids) {
+    DOM[id] = document.getElementById(id);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initPlayerDOM);
+
 // ═══════════════════════════════════════════════════
 // Player Screen UI — renders whichever engine is viewed
 // ═══════════════════════════════════════════════════
