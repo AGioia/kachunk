@@ -40,32 +40,8 @@
   overflow: hidden;
 }
 
-.card-delete-bg {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 80px;
-  background: var(--danger);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s;
-}
 
-.chunk-card.swiped .card-delete-bg {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.card-delete-bg svg {
-  width: 22px;
-  height: 22px;
-  color: white;
-}
+.chunk-card.swiped 
 
 .card-content {
   background: var(--card);

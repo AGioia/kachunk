@@ -454,7 +454,7 @@ function globalTick() {
 
       if (eng.id === viewingId) {
         if (newOT.includes(eng.focusedIdx)) {
-          document.getElementById('kachunkBtn')?.classList.add('ready-pulse');
+          DOM.kachunkBtn?.classList.add('ready-pulse');
         }
         const fst = eng.focusedState()?.status;
         if (fst === 'idle' || fst === 'done') {
@@ -488,7 +488,7 @@ function globalTick() {
 // ═══════════════════════════════════════════════════
 
 function renderChronoTicks() {
-  const g = document.getElementById('chronoTicks');
+  const g = DOM.chronoTicks || document.getElementById('chronoTicks');
   if (!g) return;
   let html = '';
   for (let i = 0; i < 60; i++) {
@@ -508,14 +508,15 @@ function switchPlayerView(eng) {
   renderDotSidebar();
   renderPlayerSteps();
   updateFocusedDisplay();
-  document.getElementById('playerTitle').textContent = eng.chunk.name;
-  document.getElementById('breadcrumbBar').classList.remove('expanded');
+  initPlayerDOM();
+  DOM.playerTitle.textContent = eng.chunk.name;
+  DOM.breadcrumbBar.classList.remove('expanded');
   updateKachunkIcon();
   const s = loadAudioSettings();
-  const voiceBtn = document.getElementById('voiceToggleBtn');
+  const voiceBtn = DOM.voiceToggleBtn;
   if (voiceBtn) voiceBtn.style.opacity = s.voice ? '1' : '0.4';
-  document.getElementById('chronoFace').className = 'chrono-face';
-  document.getElementById('kachunkBtn').classList.remove('ready-pulse', 'snapping');
+  DOM.chronoFace.className = 'chrono-face';
+  DOM.kachunkBtn.classList.remove('ready-pulse', 'snapping');
   updateLoopUI();
 }
 
@@ -527,7 +528,7 @@ function updateFocusedDisplay() {
   if (!st) return;
 
   const { secondsLeft, overtimeSeconds } = ChunkEngine.calc(st);
-  const timerEl = document.getElementById('playerTimer');
+  const timerEl = DOM.playerTimer || document.getElementById('playerTimer');
   if (st.status === 'overtime') {
     const m = Math.floor(overtimeSeconds / 60), s = overtimeSeconds % 60;
     timerEl.textContent = '+' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
@@ -538,7 +539,7 @@ function updateFocusedDisplay() {
     timerEl.classList.remove('overtime');
   }
 
-  document.getElementById('playerStepLabel').textContent = eng.focusedLabel();
+  DOM.playerStepLabel.textContent = eng.focusedLabel();
   updatePauseIcon();
 
   const running = eng.getRunning().length, paused = eng.getPaused().length;
@@ -548,7 +549,7 @@ function updateFocusedDisplay() {
   if (running > 0) t += ` · ${running} active`;
   if (paused > 0) t += ` · ${paused} paused`;
   if (overtime > 0) t += ` · ${overtime} overtime`;
-  document.getElementById('playerStepCount').textContent = t;
+  DOM.playerStepCount.textContent = t;
 
   updateChronoRings();
   updateBreadcrumb();
@@ -559,9 +560,9 @@ function updateChronoRings() {
   if (!eng) return;
   const step = eng.focusedStep();
   const st = step?._state;
-  const stepRing = document.getElementById('ringProgress');
-  const overtimeRing = document.getElementById('ringOvertime');
-  const face = document.getElementById('chronoFace');
+  const stepRing = DOM.ringProgress || document.getElementById('ringProgress');
+  const overtimeRing = DOM.ringOvertime || document.getElementById('ringOvertime');
+  const face = DOM.chronoFace || document.getElementById('chronoFace');
   if (!stepRing || !st) return;
 
   const { secondsLeft: sl, overtimeSeconds: ot } = ChunkEngine.calc(st);
@@ -601,15 +602,15 @@ function updateChronoRings() {
   }
 
   // Master ring
-  const masterRing = document.getElementById('ringMaster');
+  const masterRing = DOM.ringMaster;
   if (masterRing) {
     const masterPct = eng.totalDurationSecs() > 0 ? Math.min(eng.totalElapsed() / eng.totalDurationSecs(), 1) : 0;
     masterRing.style.strokeDashoffset = MASTER_CIRC * (1 - masterPct);
   }
 
   // Sub-chunk ring
-  const subRing = document.getElementById('ringSubchunk');
-  const subTrack = document.getElementById('ringSubchunkTrack');
+  const subRing = DOM.ringSubchunk;
+  const subTrack = DOM.ringSubchunkTrack;
   if (subRing && subTrack && step.depth > 0 && step.sourceChunkId) {
     subRing.style.opacity = '1'; subTrack.style.opacity = '1';
     const subSteps = eng.flatSteps.filter(s => s.sourceChunkId === step.sourceChunkId);
@@ -637,7 +638,7 @@ function resetOvertimeTicks() {
 function renderPlayerSteps() {
   const eng = viewingEngine();
   if (!eng) return;
-  const container = document.getElementById('playerStepsList');
+  const container = DOM.playerStepsList;
   container.innerHTML = eng.flatSteps.map((s, i) => {
     const st = s._state;
     let cls = '';
@@ -701,7 +702,7 @@ function renderPlayerSteps() {
 
 function renderDotSidebar() {
   const eng = viewingEngine();
-  const track = document.getElementById('dotSidebarTrack');
+  const track = DOM.dotSidebarTrack;
   if (!track || !eng) return;
   track.innerHTML = eng.flatSteps.map((step, i) => {
     const dc = step.depth > 0 ? ` depth-${Math.min(step.depth, 3)}` : '';
@@ -747,8 +748,8 @@ function updateBreadcrumb() {
   const eng = viewingEngine();
   if (!eng) return;
   const step = eng.focusedStep();
-  const currentEl = document.getElementById('breadcrumbCurrent');
-  const expandedEl = document.getElementById('breadcrumbExpanded');
+  const currentEl = DOM.breadcrumbCurrent;
+  const expandedEl = DOM.breadcrumbExpanded;
   if (!step || !eng.chunk) return;
 
   const crumbs = [{ name: eng.chunk.name, depth: 0 }];
@@ -761,8 +762,8 @@ function updateBreadcrumb() {
   }).join('');
 }
 
-export function toggleBreadcrumb() { document.getElementById('breadcrumbBar').classList.toggle('expanded'); }
-export function closeBreadcrumb() { document.getElementById('breadcrumbBar').classList.remove('expanded'); }
+export function toggleBreadcrumb() { DOM.breadcrumbBar.classList.toggle('expanded'); }
+export function closeBreadcrumb() { DOM.breadcrumbBar.classList.remove('expanded'); }
 export function scrollToStep(idx) {
   const items = document.querySelectorAll('.player-step-item');
   if (items[idx]) items[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -771,7 +772,7 @@ export function scrollToStep(idx) {
 // ─── Control Button Icons ───
 
 function updatePauseIcon() {
-  const btn = document.getElementById('pauseBtn');
+  const btn = DOM.pauseBtn;
   if (!btn) return;
   const eng = viewingEngine();
   const st = eng?.focusedState();
@@ -791,7 +792,7 @@ function updatePauseIcon() {
 }
 
 function updateKachunkIcon() {
-  const icon = document.getElementById('kachunkIcon');
+  const icon = DOM.kachunkIcon;
   if (!icon) return;
   const eng = viewingEngine();
   const st = eng?.focusedState();
@@ -879,7 +880,7 @@ export function kachunkAction() {
     ensureGlobalTick();
   } else {
     // Active → advance
-    const kb = document.getElementById('kachunkBtn');
+    const kb = DOM.kachunkBtn;
     playUiSound('kachunk'); vibrateDevice([15, 30, 80]);
     kb.classList.remove('ready-pulse', 'snapping');
     void kb.offsetWidth;
@@ -901,8 +902,8 @@ export function smartPause() {
   if (st && (st.status === 'overtime' || (st.status === 'paused' && spsl <= 0))) {
     eng.pauseFocused();
     playUiSound('clickPause'); vibrateDevice([15, 30]);
-    document.getElementById('chronoFace').className = 'chrono-face';
-    document.getElementById('kachunkBtn').classList.remove('ready-pulse');
+    DOM.chronoFace.className = 'chrono-face';
+    DOM.kachunkBtn.classList.remove('ready-pulse');
     if (eng.allDone()) showCompletion(eng);
   } else if (st && st.status === 'running') {
     eng.pauseFocused();
@@ -945,8 +946,8 @@ export function restartUp() {
   eng.restartFocused();
   playUiSound('whoosh'); vibrateDevice([10]);
   if (eng.playing) ensureGlobalTick();
-  document.getElementById('chronoFace').className = 'chrono-face';
-  document.getElementById('kachunkBtn').classList.remove('ready-pulse');
+  DOM.chronoFace.className = 'chrono-face';
+  DOM.kachunkBtn.classList.remove('ready-pulse');
   updateFocusedDisplay(); renderPlayerSteps(); updateKachunkIcon();
 }
 
@@ -1067,7 +1068,7 @@ export function chronoDialStart(e) {
   const eng = viewingEngine();
   if (!eng || !eng.loopSelectMode) return;
   const touch = e.touches ? e.touches[0] : e;
-  const svg = document.getElementById('chronoSvg');
+  const svg = DOM.chronoSvg;
   if (!svg) return;
   const rect = svg.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
@@ -1081,7 +1082,7 @@ export function chronoDialMove(e) {
   const eng = viewingEngine();
   if (!eng || !eng.loopSelectMode || dialStartAngle === null) return;
   const touch = e.touches ? e.touches[0] : e;
-  const svg = document.getElementById('chronoSvg');
+  const svg = DOM.chronoSvg;
   if (!svg) return;
   const rect = svg.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
@@ -1111,7 +1112,7 @@ export function chronoDialEnd() {
 
 function updateLoopUI() {
   const eng = viewingEngine();
-  const btn = document.getElementById('loopBtn');
+  const btn = DOM.loopBtn;
   if (!btn || !eng) return;
 
   if (eng.loopSelectMode) {
@@ -1126,7 +1127,7 @@ function updateLoopUI() {
       : `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="${color}" stroke-width="1.5"/><text x="12" y="16" text-anchor="middle" fill="${color}" font-size="11" font-family="'JetBrains Mono'">${groupNum}</text></svg>`;
 
     // Add dial mode class to chrono
-    document.getElementById('chronoFace')?.classList.add('loop-dial');
+    DOM.chronoFace?.classList.add('loop-dial');
   } else {
     btn.classList.remove('active');
     // Show lap count for focused step's loop, or default icon
@@ -1145,7 +1146,7 @@ function updateLoopUI() {
     } else {
       btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 6a6 6 0 1 1-3 11.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/><path d="M9 17.2l-2 1.5 0.5-2.5" fill="currentColor" opacity="0.3"/></svg>`;
     }
-    document.getElementById('chronoFace')?.classList.remove('loop-dial');
+    DOM.chronoFace?.classList.remove('loop-dial');
   }
 }
 
@@ -1169,15 +1170,15 @@ export function stopAndGoHome() {
 function showCompletion(eng) {
   stopBgAudio();
   const totalMin = eng.flatSteps.reduce((s, st) => s + (parseFloat(st.minutes) || 0), 0);
-  document.getElementById('completionSub').textContent =
+  DOM.completionSub.textContent =
     `${eng.chunk.name} — ${formatDuration(totalMin)} completed`;
-  document.getElementById('completionOverlay').classList.add('show');
+  DOM.completionOverlay.classList.add('show');
   playCompletionFanfare(); announceCompletion(eng.chunk.name);
   spawnParticles(); vibrateDevice([100, 50, 100, 50, 200]);
 }
 
 export function closeCompletion() {
-  document.getElementById('completionOverlay').classList.remove('show');
+  DOM.completionOverlay.classList.remove('show');
   const eng = viewingEngine();
   if (eng) { engines.delete(eng.id); }
   viewingId = null;
@@ -1195,21 +1196,21 @@ export function toggleVoiceInPlayer() {
 }
 
 export function toggleBgAudioPicker() {
-  const panel = document.getElementById('playerBgPicker');
-  const overlay = document.getElementById('bgPickerOverlay');
+  const panel = DOM.playerBgPicker;
+  const overlay = DOM.bgPickerOverlay;
   if (panel.classList.contains('show')) { closeBgAudioPicker(); }
   else { overlay.classList.add('show'); panel.classList.add('show'); renderPlayerBgPicker(); }
 }
 
 export function closeBgAudioPicker() {
-  document.getElementById('bgPickerOverlay').classList.remove('show');
-  document.getElementById('playerBgPicker').classList.remove('show');
+  DOM.bgPickerOverlay.classList.remove('show');
+  DOM.playerBgPicker.classList.remove('show');
 }
 
 function renderPlayerBgPicker() {
   const eng = viewingEngine();
   const currentBg = getEffectiveBg(eng);
-  document.getElementById('playerBgPickerPills').innerHTML =
+  DOM.playerBgPickerPills.innerHTML =
     Object.entries(BG_SOUNDS).map(([key, snd]) =>
       `<button class="sound-pill ${currentBg === key ? 'selected' : ''}" onclick="window._kachunk.selectPlayerBg('${key}')">${snd.icon} ${snd.label}</button>`
     ).join('');
