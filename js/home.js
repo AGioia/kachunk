@@ -105,7 +105,11 @@ export function renderHome() {
             
             
             
-            onclick="event.stopPropagation(); window._kachunk.chronoTap('${c.id}')"
+            ontouchstart="event.stopPropagation(); window._kachunk.chronoDown('${c.id}')"
+            ontouchend="event.stopPropagation(); window._kachunk.chronoUp('${c.id}')"
+            ontouchcancel="window._kachunk.chronoCancel()"
+            onmousedown="event.stopPropagation(); window._kachunk.chronoDown('${c.id}')"
+            onmouseup="event.stopPropagation(); window._kachunk.chronoUp('${c.id}')"
             aria-label="${c.name}">
             <svg viewBox="0 0 44 44">
               <circle fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
@@ -153,11 +157,36 @@ let pressChunkId = null;
 let pressTriggered = false;
 
 
-export function chronoTap(chunkId) {
+
+let pressTimer;
+let pressTriggered = false;
+
+export function chronoDown(chunkId) {
+  pressTriggered = false;
+  const active = isEngineActive(chunkId);
+  if (!active) return; // Only allow reset if it's currently active/paused
+  
+  pressTimer = setTimeout(() => {
+    pressTriggered = true;
+    const eng = window._kachunk._engines.get(chunkId);
+    if (eng) {
+      eng.masterPause();
+      window._kachunk._engines.delete(chunkId);
+      window._kachunk.saveEngineState();
+    }
+    window._kachunk.playUiSound('boop');
+    window._kachunk.vibrateDevice([50, 50, 50]);
+    renderHome();
+  }, 600); // 600ms hold to reset
+}
+
+export function chronoUp(chunkId) {
+  clearTimeout(pressTimer);
+  if (pressTriggered) return;
+
   const active = isEngineActive(chunkId);
   if (active) {
-    const playing = isEnginePlaying(chunkId);
-    if (playing) {
+    if (isEnginePlaying(chunkId)) {
       pauseChunkFromDrawer(chunkId);
       playUiSound('clickPause');
       vibrateDevice([10]);
@@ -176,6 +205,12 @@ export function chronoTap(chunkId) {
   }
   renderHome();
 }
+
+export function chronoCancel() {
+  clearTimeout(pressTimer);
+  pressTriggered = false;
+}
+
 
 
 // ─── Card body: open player ───
