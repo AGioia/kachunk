@@ -162,21 +162,29 @@ let pressTriggered = false;
 
 export function chronoDown(chunkId) {
   pressTriggered = false;
+  pressChunkId = chunkId;
   const active = isEngineActive(chunkId);
-  if (!active) return; // Only allow reset if it's currently active/paused
-  
+
   pressTimer = setTimeout(() => {
     pressTriggered = true;
-    const eng = window._kachunk._engines.get(chunkId);
-    if (eng) {
-      eng.masterPause();
-      window._kachunk._engines.delete(chunkId);
-      window._kachunk.saveEngineState();
+
+    if (active) {
+      // Long-press on active/paused chunk = reset
+      const eng = window._kachunk._engines?.get(chunkId);
+      if (eng) {
+        eng.masterPause();
+        window._kachunk._engines.delete(chunkId);
+        if (window._kachunk.saveEngineState) window._kachunk.saveEngineState();
+      }
+      if (window._kachunk.playUiSound) window._kachunk.playUiSound('boop');
+      if (window._kachunk.vibrateDevice) window._kachunk.vibrateDevice([50, 50, 50]);
+      renderHome();
+    } else {
+      // Long-press on idle chunk = schedule
+      const fn = window._kachunk._openSchedule;
+      if (fn) fn(chunkId);
     }
-    window._kachunk.playUiSound('boop');
-    window._kachunk.vibrateDevice([50, 50, 50]);
-    renderHome();
-  }, 600); // 600ms hold to reset
+  }, 600);
 }
 
 export function chronoUp(chunkId) {
